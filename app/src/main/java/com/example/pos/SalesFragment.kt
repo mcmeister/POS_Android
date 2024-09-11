@@ -6,10 +6,12 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -20,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class SalesFragment : Fragment() {
 
@@ -40,7 +44,7 @@ class SalesFragment : Fragment() {
             googleDrive.handleSignInResult(task, {
                 exportSalesToGoogleDrive()
             }, {
-                // Handle failure
+                showToast("Failed to sign in to Google Drive")
             })
         }
     }
@@ -103,6 +107,10 @@ class SalesFragment : Fragment() {
         lifecycleScope.launch {
             val driveService = googleDrive.getDriveService()
             driveService?.let {
+                // Log export start
+                Log.d("SalesFragment", "Starting export to Google Drive")
+                showToast("Starting export to Google Drive")
+
                 // Step 1: Check or create "Oh My Grill" folder
                 val ohMyGrillFolderId = googleDrive.checkOrCreateFolder(driveService, "Oh My Grill")
 
@@ -117,10 +125,19 @@ class SalesFragment : Fragment() {
                 // Step 4: Convert sales data to CSV format
                 val csvData = salesDataToCSV(salesData)
 
-                // Step 5: Save the report to Google Drive
-                val fileName = "$startDate-$endDate.csv"
+                // Step 5: Format the startDate and endDate as 'yyyy-MM-dd'
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val startDateFormatted = dateFormat.format(startDate)
+                val endDateFormatted = dateFormat.format(endDate)
+
+                // Step 6: Create the report file name using the formatted dates
+                val fileName = "$startDateFormatted-$endDateFormatted.csv"
+
+                // Step 7: Save the report to Google Drive
                 if (reportsFolderId != null) {
                     googleDrive.saveReportToDrive(driveService, fileName, reportsFolderId, csvData.toByteArray())
+                    Log.d("SalesFragment", "Export to Google Drive completed successfully")
+                    showToast("Export to Google Drive completed successfully")
                 }
             }
         }
@@ -128,9 +145,9 @@ class SalesFragment : Fragment() {
 
     // Convert sales data to CSV format
     private fun salesDataToCSV(sales: List<Sale>): String {
-        val header = "Sale ID, Item ID, Quantity, Raw Price, Sale Price, Profit, Sales Channel, Timestamp\n"
+        val header = "Sale ID, Item Name, Quantity, Raw Price, Sale Price, Profit, Sales Channel, Timestamp\n"
         val data = sales.joinToString("\n") { sale ->
-            "${sale.id},${sale.itemId},${sale.quantity},${sale.rawPrice},${sale.salePrice},${sale.profit},${sale.salesChannel},${sale.timestamp}"
+            "${sale.id},${sale.itemName},${sale.quantity},${sale.rawPrice},${sale.salePrice},${sale.profit},${sale.salesChannel},${sale.timestamp}"
         }
         return header + data
     }
@@ -175,5 +192,10 @@ class SalesFragment : Fragment() {
             items.addAll(itemsFromDb)
             adapter.notifyDataSetChanged()
         }
+    }
+
+    // Show toast messages
+    private fun showToast(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 }
