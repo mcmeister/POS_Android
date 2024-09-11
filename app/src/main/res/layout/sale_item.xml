@@ -1,0 +1,64 @@
+<!-- sale_item.xml -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <!-- Sale ID -->
+    <TextView
+        android:id="@+id/text_view_sale_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/sale_id"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/text_view_item_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/item_name" />
+
+    <!-- Sales Channel -->
+    <TextView
+        android:id="@+id/text_view_sales_channel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/sales_channel" />
+
+    <!-- Quantity -->
+    <TextView
+        android:id="@+id/text_view_quantity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/quantity" />
+
+    <!-- Raw Price -->
+    <TextView
+        android:id="@+id/text_view_raw_price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/raw_price" />
+
+    <!-- Sale Price -->
+    <TextView
+        android:id="@+id/text_view_sale_price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/sale_price" />
+
+    <!-- Profit -->
+    <TextView
+        android:id="@+id/text_view_profit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/profit" />
+
+    <!-- Timestamp -->
+    <TextView
+        android:id="@+id/text_view_sale_timestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/timestamp" />
+</LinearLayout>

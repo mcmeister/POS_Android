@@ -1,0 +1,74 @@
+<!-- fragment_sales.xml -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:padding="16dp"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Start Date Picker -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:text="@string/start_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/button_start_date"
+            style="?android:attr/buttonBarButtonStyle"
+            android:text="@string/select_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:padding="12dp" />
+    </LinearLayout>
+
+    <!-- End Date Picker -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:text="@string/end_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/button_end_date"
+            style="?android:attr/buttonBarButtonStyle"
+            android:text="@string/select_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:padding="12dp" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/button_export"
+        style="?android:attr/buttonBarButtonStyle"
+        android:text="@string/export"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@android:color/holo_red_light"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:layout_gravity="center"
+        android:padding="12dp"
+        android:background="@drawable/button_border" />
+
+    <!-- Sales List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_sales"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</LinearLayout>
