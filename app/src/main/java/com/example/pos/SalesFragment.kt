@@ -105,41 +105,61 @@ class SalesFragment : Fragment() {
     // Export sales to Google Drive
     private fun exportSalesToGoogleDrive() {
         lifecycleScope.launch {
+            Log.d("SalesFragment", "Attempting to get Google Drive service")
             val driveService = googleDrive.getDriveService()
-            driveService?.let {
-                // Log export start
-                Log.d("SalesFragment", "Starting export to Google Drive")
-                showToast("Starting export to Google Drive")
-
-                // Step 1: Check or create "Oh My Grill" folder
-                val ohMyGrillFolderId = googleDrive.checkOrCreateFolder(driveService, "Oh My Grill")
-
-                // Step 2: Check or create "Reports" folder inside "Oh My Grill"
-                val reportsFolderId = googleDrive.checkOrCreateFolder(driveService, "Reports", ohMyGrillFolderId)
-
-                // Step 3: Retrieve sales data from the database for the selected date range
-                val salesData = withContext(Dispatchers.IO) {
-                    database.saleDao().getSalesBetween(startDate, endDate)
-                }
-
-                // Step 4: Convert sales data to CSV format
-                val csvData = salesDataToCSV(salesData)
-
-                // Step 5: Format the startDate and endDate as 'yyyy-MM-dd'
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val startDateFormatted = dateFormat.format(startDate)
-                val endDateFormatted = dateFormat.format(endDate)
-
-                // Step 6: Create the report file name using the formatted dates
-                val fileName = "$startDateFormatted-$endDateFormatted.csv"
-
-                // Step 7: Save the report to Google Drive
-                if (reportsFolderId != null) {
-                    googleDrive.saveReportToDrive(driveService, fileName, reportsFolderId, csvData.toByteArray())
-                    Log.d("SalesFragment", "Export to Google Drive completed successfully")
-                    showToast("Export to Google Drive completed successfully")
-                }
+            if (driveService == null) {
+                Log.e("SalesFragment", "Google Drive service is null. Aborting export.")
+                showToast("Failed to connect to Google Drive")
+                return@launch
             }
+
+            Log.d("SalesFragment", "Google Drive service successfully retrieved")
+
+            // Log export start
+            Log.d("SalesFragment", "Starting export to Google Drive")
+            showToast("Starting export to Google Drive")
+
+            // Step 1: Check or create "Oh My Grill" folder
+            val ohMyGrillFolderId = googleDrive.checkOrCreateFolder(driveService, "Oh My Grill")
+            if (ohMyGrillFolderId == null) {
+                Log.e("SalesFragment", "Failed to create 'Oh My Grill' folder.")
+                showToast("Failed to create 'Oh My Grill' folder")
+                return@launch
+            }
+
+            Log.d("SalesFragment", "'Oh My Grill' folder created or found with ID: $ohMyGrillFolderId")
+
+            // Step 2: Check or create "Reports" folder inside "Oh My Grill"
+            val reportsFolderId = googleDrive.checkOrCreateFolder(driveService, "Reports", ohMyGrillFolderId)
+            if (reportsFolderId == null) {
+                Log.e("SalesFragment", "Failed to create 'Reports' folder.")
+                showToast("Failed to create 'Reports' folder")
+                return@launch
+            }
+
+            Log.d("SalesFragment", "'Reports' folder created or found with ID: $reportsFolderId")
+
+            // Step 3: Retrieve sales data from the database for the selected date range
+            val salesData = withContext(Dispatchers.IO) {
+                database.saleDao().getSalesBetween(startDate, endDate)
+            }
+            Log.d("SalesFragment", "Sales data retrieved successfully")
+
+            // Step 4: Convert sales data to CSV format
+            val csvData = salesDataToCSV(salesData)
+
+            // Step 5: Format the startDate and endDate as 'yyyy-MM-dd'
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val startDateFormatted = dateFormat.format(startDate)
+            val endDateFormatted = dateFormat.format(endDate)
+
+            // Step 6: Create the report file name using the formatted dates
+            val fileName = "$startDateFormatted-$endDateFormatted.csv"
+
+            // Step 7: Save the report to Google Drive
+            googleDrive.saveReportToDrive(driveService, fileName, reportsFolderId, csvData.toByteArray())
+            Log.d("SalesFragment", "Export to Google Drive completed successfully")
+            showToast("Export to Google Drive completed successfully")
         }
     }
 

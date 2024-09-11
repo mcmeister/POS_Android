@@ -72,11 +72,16 @@ class GoogleDrive(private val fragment: Fragment) {
                     listOf(DriveScopes.DRIVE_FILE)
                 ).setSelectedAccount(it.account)
 
+                Log.d("GoogleDrive", "Creating Google Drive service for account: ${it.account?.name}")
+
                 Drive.Builder(
                     NetHttpTransport(),
                     GsonFactory.getDefaultInstance(),
                     credential
                 ).setApplicationName("POS App").build()
+            } ?: run {
+                Log.e("GoogleDrive", "Google account is null. Cannot create Drive service.")
+                null
             }
         }
     }
