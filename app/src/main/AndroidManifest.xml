@@ -38,15 +38,17 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <activity android:name=".MainActivity" />
+
         <!-- Declare the EditItemActivity where photo will be added -->
         <activity android:name=".EditItemActivity"
             android:enableOnBackInvokedCallback="true"/>
 
-        <!-- Declare the MainActivity as the launcher activity -->
+        <!-- SplashActivity set as the launcher activity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.POS">
+            android:theme="@style/Theme.POS.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

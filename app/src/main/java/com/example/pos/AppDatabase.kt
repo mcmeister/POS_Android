@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Item::class, Sale::class, SalesChannel::class], version = 6, exportSchema = false)
+@Database(entities = [Item::class, Sale::class, SalesChannel::class, Expense::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
     abstract fun saleDao(): SaleDao
+    abstract fun expenseDao(): ExpenseDao  // Add ExpenseDao
 
     companion object {
         @Volatile
@@ -39,13 +40,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration logic from version 6 to 7
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create new 'expense' table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `expense` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `timestamp` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java, "pos_database"
                 )
-                    .addMigrations(MIGRATION_5_6)  // Add migration step
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { instance = it }
             }
     }

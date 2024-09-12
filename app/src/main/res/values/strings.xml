@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">OMG</string>
+    <string name="app_name">Oh My Grill</string>
     <string name="nav_menu">Menu</string>
     <string name="nav_sales">Sales</string>
     <string name="add_item">Add Item</string>
@@ -27,4 +27,9 @@
     <string name="timestamp">Date:</string>
     <string name="export">Export</string>
     <string name="item_name">Item Name</string>
+    <string name="expense_amount">Expense Amount</string>
+    <string name="submit">Submit</string>
+    <string name="total_expense">Expense: %.0f</string>
+    <string name="total_profit">Profit: %.0f</string>
+    <string name="splash_logo">Splash Logo</string>
 </resources>

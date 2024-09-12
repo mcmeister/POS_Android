@@ -12,7 +12,7 @@ interface SaleDao {
     @Query("SELECT MAX(id) FROM sale")
     fun getLastSaleId(): Int?
 
-    @Query("SELECT * FROM sale WHERE timestamp >= :startDate AND timestamp < :endDate")
+    @Query("SELECT * FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
     fun getSalesBetween(startDate: Long, endDate: Long): List<Sale>
 
     // New query to get all sales channels
@@ -22,4 +22,7 @@ interface SaleDao {
     // New method to insert a new sales channel
     @Insert
     fun insertSalesChannel(salesChannel: SalesChannel)
+
+    @Query("SELECT SUM(profit) FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
+    suspend fun getTotalProfitBetween(startDate: Long, endDate: Long): Double
 }

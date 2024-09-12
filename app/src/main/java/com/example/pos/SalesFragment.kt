@@ -11,8 +11,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -53,40 +56,59 @@ class SalesFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_sales, container, false)
+
+        // Initialize views
         recyclerView = view.findViewById(R.id.recycler_view_sales)
         val buttonStartDate: Button = view.findViewById(R.id.button_start_date)
         val buttonEndDate: Button = view.findViewById(R.id.button_end_date)
+        val buttonSubmitExpense: Button = view.findViewById(R.id.button_submit_expense)
+        val editTextExpense: EditText = view.findViewById(R.id.edit_text_expense)
         val buttonExport: Button = view.findViewById(R.id.button_export)
+
+        // TextViews for displaying the sum of Expenses and Profits
+        val textViewExpenseSum: TextView = view.findViewById(R.id.text_view_expense_sum)
+        val textViewProfitSum: TextView = view.findViewById(R.id.text_view_profit_sum)
 
         // Initialize the database
         database = AppDatabase.getDatabase(requireContext())
 
-        // Set up the RecyclerView with the adapter (initialize with both sales and items)
+        // Set up the RecyclerView with the adapter
         adapter = SalesAdapter(sales, items)
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = adapter
 
-        // Initialize GoogleDrive instance
-        googleDrive = GoogleDrive(this)
-        googleDrive.initializeGoogleSignIn()
+        // Listen to changes in the expense input field
+        editTextExpense.addTextChangedListener {
+            buttonSubmitExpense.isEnabled = it.toString().isNotEmpty()
+        }
 
-        // Handle start date selection
+        // Handle submit button click
+        buttonSubmitExpense.setOnClickListener {
+            val expenseAmount = editTextExpense.text.toString().toDoubleOrNull()
+            if (expenseAmount != null) {
+                saveExpense(expenseAmount)
+                editTextExpense.text.clear()
+                buttonSubmitExpense.isEnabled = false
+            } else {
+                showToast("Invalid expense amount")
+            }
+        }
+
+        // Date picker buttons
         buttonStartDate.setOnClickListener {
             showDatePicker { date ->
                 startDate = date
-                filterSales()
+                filterSales(textViewExpenseSum, textViewProfitSum)
             }
         }
 
-        // Handle end date selection
         buttonEndDate.setOnClickListener {
             showDatePicker { date ->
                 endDate = date
-                filterSales()
+                filterSales(textViewExpenseSum, textViewProfitSum)
             }
         }
 
-        // Handle export button click
         buttonExport.setOnClickListener {
             if (googleDrive.googleAccount == null) {
                 googleDrive.signInToGoogle(signInLauncher)
@@ -95,11 +117,27 @@ class SalesFragment : Fragment() {
             }
         }
 
-        // Fetch initial sales and items
-        filterSales()
+        filterSales(textViewExpenseSum, textViewProfitSum)
         fetchItems()
 
         return view
+    }
+
+    // Function to save the expense in the database with the current timestamp
+    private fun saveExpense(amount: Double) {
+        lifecycleScope.launch {
+            val timestamp = System.currentTimeMillis()
+            val expense = Expense(amount = amount, timestamp = timestamp)
+
+            withContext(Dispatchers.IO) {
+                database.expenseDao().insertExpense(expense)
+            }
+
+            showToast("Expense saved: $amount")
+
+            // Refresh UI after expense is saved
+            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!, view?.findViewById(R.id.text_view_profit_sum)!!)
+        }
     }
 
     // Export sales to Google Drive
@@ -190,23 +228,48 @@ class SalesFragment : Fragment() {
 
     // Fetch sales from the database based on the date range and update the RecyclerView
     @SuppressLint("NotifyDataSetChanged")
-    private fun filterSales() {
+    private fun filterSales(expenseTextView: TextView, profitTextView: TextView) {
         lifecycleScope.launch {
-            // Set the end date to 23:59:59 of the selected day
-            val calendar = Calendar.getInstance()
-            calendar.timeInMillis = endDate
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val adjustedEndDate = calendar.timeInMillis
+            // Adjust the startDate and endDate to cover the entire day
+            val calendarStart = Calendar.getInstance()
+            calendarStart.timeInMillis = startDate
+            calendarStart.set(Calendar.HOUR_OF_DAY, 0)
+            calendarStart.set(Calendar.MINUTE, 0)
+            calendarStart.set(Calendar.SECOND, 0)
+            calendarStart.set(Calendar.MILLISECOND, 0)
+            val adjustedStartDate = calendarStart.timeInMillis
 
+            val calendarEnd = Calendar.getInstance()
+            calendarEnd.timeInMillis = endDate
+            calendarEnd.set(Calendar.HOUR_OF_DAY, 23)
+            calendarEnd.set(Calendar.MINUTE, 59)
+            calendarEnd.set(Calendar.SECOND, 59)
+            calendarEnd.set(Calendar.MILLISECOND, 999)
+            val adjustedEndDate = calendarEnd.timeInMillis
+
+            // Fetch sales for the selected date range
             val salesFromDb = withContext(Dispatchers.IO) {
-                database.saleDao().getSalesBetween(startDate, adjustedEndDate)
+                database.saleDao().getSalesBetween(adjustedStartDate, adjustedEndDate)
             }
+
+            // Fetch total expenses for the selected date range
+            val totalExpenses = withContext(Dispatchers.IO) {
+                database.expenseDao().getTotalExpenseBetween(adjustedStartDate, adjustedEndDate)
+            }
+
+            // Fetch total profit for the selected date range
+            val totalProfits = withContext(Dispatchers.IO) {
+                database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
+            }
+
+            // Update the RecyclerView
             sales.clear()
             sales.addAll(salesFromDb)
             adapter.notifyDataSetChanged()
+
+            // Update TextViews with formatted values
+            expenseTextView.text = getString(R.string.total_expense, totalExpenses)
+            profitTextView.text = getString(R.string.total_profit, totalProfits)
         }
     }
 

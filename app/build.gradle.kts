@@ -50,17 +50,12 @@ android {
     }
 
     packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-
-    packagingOptions {
-        exclude("META-INF/DEPENDENCIES")
-        exclude("META-INF/LICENSE")
-        exclude("META-INF/LICENSE.txt")
-        exclude ("META-INF/NOTICE")
-        exclude ("META-INF/NOTICE.txt")
+        resources.excludes.add("/META-INF/DEPENDENCIES")
+        resources.excludes.add("/META-INF/LICENSE")
+        resources.excludes.add("/META-INF/LICENSE.txt")
+        resources.excludes.add("/META-INF/NOTICE")
+        resources.excludes.add("/META-INF/NOTICE.txt")
+        resources.excludes.add("/META-INF/{AL2.0,LGPL2.1}")
     }
 }
 
@@ -81,12 +76,16 @@ dependencies {
 
     // AndroidX and other libraries
     implementation("androidx.recyclerview:recyclerview:1.2.1")
-    implementation("androidx.room:room-runtime:2.5.1")
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
     implementation("com.github.bumptech.glide:glide:4.12.0")
-    ksp("androidx.room:room-compiler:2.5.1")
+    ksp("androidx.room:room-compiler:2.6.1")
     implementation("androidx.appcompat:appcompat:1.4.2")
     implementation("com.google.android.material:material:1.5.0")
     implementation("androidx.fragment:fragment-ktx:1.5.5")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     implementation("androidx.core:core-ktx:1.8.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.5.0")
