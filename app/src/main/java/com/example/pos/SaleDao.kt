@@ -23,6 +23,6 @@ interface SaleDao {
     @Insert
     fun insertSalesChannel(salesChannel: SalesChannel)
 
-    @Query("SELECT SUM(profit) FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
-    suspend fun getTotalProfitBetween(startDate: Long, endDate: Long): Double
+    @Query("SELECT SUM(salePrice)*quantity FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
+    suspend fun getTotalSalesBetween(startDate: Long, endDate: Long): Double
 }

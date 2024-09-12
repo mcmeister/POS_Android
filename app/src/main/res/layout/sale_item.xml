@@ -40,7 +40,8 @@
         android:id="@+id/text_view_raw_price"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/raw_price" />
+        android:text="@string/raw_price"
+        android:visibility="gone"/>
 
     <!-- Sale Price -->
     <TextView
@@ -51,10 +52,10 @@
 
     <!-- Profit -->
     <TextView
-        android:id="@+id/text_view_profit"
+        android:id="@+id/text_view_total"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/profit" />
+        android:text="@string/total" />
 
     <!-- Timestamp -->
     <TextView

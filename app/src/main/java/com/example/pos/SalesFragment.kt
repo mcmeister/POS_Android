@@ -228,7 +228,7 @@ class SalesFragment : Fragment() {
 
     // Fetch sales from the database based on the date range and update the RecyclerView
     @SuppressLint("NotifyDataSetChanged")
-    private fun filterSales(expenseTextView: TextView, profitTextView: TextView) {
+    private fun filterSales(expenseTextView: TextView, salesTextView: TextView) {
         lifecycleScope.launch {
             // Adjust the startDate and endDate to cover the entire day
             val calendarStart = Calendar.getInstance()
@@ -258,8 +258,8 @@ class SalesFragment : Fragment() {
             }
 
             // Fetch total profit for the selected date range
-            val totalProfits = withContext(Dispatchers.IO) {
-                database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
+            val totalSales = withContext(Dispatchers.IO) {
+                database.saleDao().getTotalSalesBetween(adjustedStartDate, adjustedEndDate)
             }
 
             // Update the RecyclerView
@@ -269,7 +269,7 @@ class SalesFragment : Fragment() {
 
             // Update TextViews with formatted values
             expenseTextView.text = getString(R.string.total_expense, totalExpenses)
-            profitTextView.text = getString(R.string.total_profit, totalProfits)
+            salesTextView.text = getString(R.string.total_sales, totalSales)
         }
     }
 

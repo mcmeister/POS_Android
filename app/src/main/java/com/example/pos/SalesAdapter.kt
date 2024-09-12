@@ -20,7 +20,7 @@ class SalesAdapter(private val sales: List<Sale>, private val items: List<Item>)
         val textViewQuantity: TextView = view.findViewById(R.id.text_view_quantity)
         val textViewRawPrice: TextView = view.findViewById(R.id.text_view_raw_price)
         val textViewSalePrice: TextView = view.findViewById(R.id.text_view_sale_price)
-        val textViewProfit: TextView = view.findViewById(R.id.text_view_profit)
+        val textViewTotal: TextView = view.findViewById(R.id.text_view_total)
         val textViewSaleTimestamp: TextView = view.findViewById(R.id.text_view_sale_timestamp)
     }
 
@@ -37,17 +37,17 @@ class SalesAdapter(private val sales: List<Sale>, private val items: List<Item>)
         val item = items.find { it.id == sale.itemId } // Get corresponding item details
 
         // Set the sale details
-        holder.textViewSaleId.text = "Sale ID: ${sale.id}"
-        holder.textViewItemName.text = "Item Name: ${item?.name ?: "Unknown Item"}" // Set Item Name
+        holder.textViewSaleId.text = "Order ID: ${sale.id}"
+        holder.textViewItemName.text = "Item: ${item?.name ?: "Unknown Item"}" // Set Item Name
         holder.textViewSalesChannel.text = "Sales Channel: ${sale.salesChannel}"
         holder.textViewQuantity.text = "Quantity: ${sale.quantity}"
         holder.textViewRawPrice.text = "Raw Price: ${item?.rawPrice ?: 0}"
         holder.textViewSalePrice.text = "Sale Price: ${sale.salePrice}"
 
         // Correct profit calculation: (Sale Price - Raw Price) * Quantity
-        val rawPrice = item?.rawPrice ?: 0
-        val profit = (sale.salePrice - rawPrice) * sale.quantity
-        holder.textViewProfit.text = "Profit: $profit"
+        // val rawPrice = item?.rawPrice ?: 0
+        val total = sale.salePrice * sale.quantity
+        holder.textViewTotal.text = "Total: $total"
 
         // Format the timestamp to a readable date
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
