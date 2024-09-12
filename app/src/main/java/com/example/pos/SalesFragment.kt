@@ -192,8 +192,17 @@ class SalesFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun filterSales() {
         lifecycleScope.launch {
+            // Set the end date to 23:59:59 of the selected day
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = endDate
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val adjustedEndDate = calendar.timeInMillis
+
             val salesFromDb = withContext(Dispatchers.IO) {
-                database.saleDao().getSalesBetween(startDate, endDate)
+                database.saleDao().getSalesBetween(startDate, adjustedEndDate)
             }
             sales.clear()
             sales.addAll(salesFromDb)
