@@ -22,8 +22,19 @@ android {
         }
     }
 
+    // Signing configuration for release build
+    signingConfigs {
+        create("release") {
+            keyAlias = "AliasPos" // Key alias as a string
+            keyPassword = "online" // Key password
+            storeFile = file("/home/mcmeister/Documents/POS_App_Dev/keystore_pos.jks") // Keystore path
+            storePassword = "online" // Store password
+        }
+    }
+
     buildTypes {
-        release {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release") // Corrected the signing config
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
