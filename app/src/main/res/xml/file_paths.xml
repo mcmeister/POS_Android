@@ -1,3 +1,10 @@
 <paths>
+    <!-- Path for shared images in the Pictures directory -->
     <external-files-path name="my_images" path="Pictures/" />
+
+    <!-- Path for external storage directory (accessible by the user) -->
+    <external-path name="external_files" path="." />
+
+    <!-- Path for internal storage directory (private to your app) -->
+    <files-path name="internal_files" path="." />
 </paths>

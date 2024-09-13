@@ -69,13 +69,13 @@ class SalesFragment : Fragment() {
                     // Sign-in failed, show error and save report locally
                     Log.e("SalesFragment", "Sign-in failed in handleSignInResult, saving report locally")
                     showToast("Failed to sign in to Google Drive. Saving report locally.")
-                    saveReportLocally()
+                    retrieveAndSaveLocally()
                 })
             }
         } else {
             Log.e("SalesFragment", "Sign-In canceled or failed, resultCode: ${result.resultCode}")
             showToast("Google Sign-In canceled. Saving report locally.")
-            saveReportLocally()
+            retrieveAndSaveLocally()
         }
     }
 
@@ -143,11 +143,11 @@ class SalesFragment : Fragment() {
             Log.d("SalesFragment", "Export button clicked, checking sign-in status...")
             lifecycleScope.launch {
                 googleDrive.signInToGoogle(signInLauncher) {
-                Log.d("SalesFragment", "Sign-in successful, proceeding with export")
-                exportSalesToGoogleDrive()
+                    Log.d("SalesFragment", "Sign-in successful, proceeding with export")
+                    exportSalesToGoogleDrive()
+                }
             }
         }
-            }
 
         filterSales(textViewExpenseSum, textViewProfitSum)
         fetchItems()
@@ -164,7 +164,7 @@ class SalesFragment : Fragment() {
             }
         } else {
             showToast("Google authorization failed. Saving report locally.")
-            saveReportLocally()
+            retrieveAndSaveLocally()
         }
     }
 
@@ -182,6 +182,19 @@ class SalesFragment : Fragment() {
 
             // Refresh UI after expense is saved
             filterSales(view?.findViewById(R.id.text_view_expense_sum)!!, view?.findViewById(R.id.text_view_profit_sum)!!)
+        }
+    }
+
+    // Retrieve data and save report locally
+    private fun retrieveAndSaveLocally() {
+        lifecycleScope.launch {
+            val salesData = withContext(Dispatchers.IO) {
+                database.saleDao().getSalesReport(startDate, endDate)
+            }
+            val expensesData = withContext(Dispatchers.IO) {
+                database.expenseDao().getAllExpenses()
+            }
+            saveReportLocally(salesData, expensesData)
         }
     }
 
@@ -302,18 +315,9 @@ class SalesFragment : Fragment() {
         return header + data
     }
 
-    private fun saveReportLocally() {
+    private fun saveReportLocally(salesData: List<SalesReport>, expensesData: List<Expense>) {
         lifecycleScope.launch {
             try {
-                // Retrieve sales and expense data from the database
-                val salesData = withContext(Dispatchers.IO) {
-                    database.saleDao().getSalesReport(startDate, endDate)
-                }
-
-                val expensesData = withContext(Dispatchers.IO) {
-                    database.expenseDao().getAllExpenses()
-                }
-
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val startDateFormatted = dateFormat.format(startDate)
                 val endDateFormatted = dateFormat.format(endDate)
@@ -326,10 +330,10 @@ class SalesFragment : Fragment() {
                     File(Environment.getExternalStorageDirectory(), fileName)
                 }
 
-                val workbook = HSSFWorkbook()  // Use HSSFWorkbook to create a .xls file
+                val workbook = HSSFWorkbook()
                 val sheet = workbook.createSheet("Sales Report")
 
-                // Create headers, excluding the ID columns
+                // Create headers
                 val headerRow = sheet.createRow(0)
                 headerRow.createCell(0).setCellValue("Item Name")
                 headerRow.createCell(1).setCellValue("Quantity")
@@ -339,7 +343,7 @@ class SalesFragment : Fragment() {
                 headerRow.createCell(5).setCellValue("Amount")
                 headerRow.createCell(6).setCellValue("Expense Timestamp")
 
-                // Write sales data, excluding the ID column
+                // Write sales data
                 var rowIndex = 1
                 salesData.forEach { sale ->
                     val row = sheet.createRow(rowIndex++)
@@ -350,7 +354,7 @@ class SalesFragment : Fragment() {
                     row.createCell(4).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
                 }
 
-                // Write expense data, excluding the ID column
+                // Write expense data
                 expensesData.forEach { expense ->
                     val row = sheet.createRow(rowIndex++)
                     row.createCell(5).setCellValue(expense.amount.toString())
@@ -406,22 +410,8 @@ class SalesFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun filterSales(expenseTextView: TextView, salesTextView: TextView) {
         lifecycleScope.launch {
-            // Adjust the startDate and endDate to cover the entire day
-            val calendarStart = Calendar.getInstance()
-            calendarStart.timeInMillis = startDate
-            calendarStart.set(Calendar.HOUR_OF_DAY, 0)
-            calendarStart.set(Calendar.MINUTE, 0)
-            calendarStart.set(Calendar.SECOND, 0)
-            calendarStart.set(Calendar.MILLISECOND, 0)
-            val adjustedStartDate = calendarStart.timeInMillis
-
-            val calendarEnd = Calendar.getInstance()
-            calendarEnd.timeInMillis = endDate
-            calendarEnd.set(Calendar.HOUR_OF_DAY, 23)
-            calendarEnd.set(Calendar.MINUTE, 59)
-            calendarEnd.set(Calendar.SECOND, 59)
-            calendarEnd.set(Calendar.MILLISECOND, 999)
-            val adjustedEndDate = calendarEnd.timeInMillis
+            val adjustedStartDate = getAdjustedDate(startDate, isStart = true)
+            val adjustedEndDate = getAdjustedDate(endDate, isStart = false)
 
             // Fetch sales for the selected date range
             val salesFromDb = withContext(Dispatchers.IO) {
@@ -447,6 +437,23 @@ class SalesFragment : Fragment() {
             expenseTextView.text = getString(R.string.total_expense, totalExpenses)
             salesTextView.text = getString(R.string.total_sales, totalSales)
         }
+    }
+
+    private fun getAdjustedDate(date: Long, isStart: Boolean): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = date
+        if (isStart) {
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+        } else {
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+        }
+        return calendar.timeInMillis
     }
 
     // Fetch items from the database and update the RecyclerView

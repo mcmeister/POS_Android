@@ -2,11 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Declare that the camera feature is optional -->
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
-
     <!-- Permissions for notifications, external storage, and camera -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
@@ -15,7 +10,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
@@ -34,7 +28,7 @@
         <!-- Declare the FileProvider for sharing files (e.g., camera photos) -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.example.pos.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
