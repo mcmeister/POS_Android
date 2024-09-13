@@ -318,22 +318,34 @@ class SalesFragment : Fragment() {
     private fun saveReportLocally(salesData: List<SalesReport>, expensesData: List<Expense>) {
         lifecycleScope.launch {
             try {
+                Log.d("SalesFragment", "Starting to save report locally.")
+
+                // Formatting the date for the file name
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val startDateFormatted = dateFormat.format(startDate)
                 val endDateFormatted = dateFormat.format(endDate)
+                Log.d("SalesFragment", "Formatted start date: $startDateFormatted, end date: $endDateFormatted")
 
                 // Create the report file name using the formatted dates
                 val fileName = "$startDateFormatted-$endDateFormatted.xls"
                 val file = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    File(requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    Log.d("SalesFragment", "Using Downloads directory for Android 10+: $downloadsDir")
+                    File(downloadsDir, fileName)
                 } else {
-                    File(Environment.getExternalStorageDirectory(), fileName)
+                    val externalStorage = Environment.getExternalStorageDirectory()
+                    Log.d("SalesFragment", "Using external storage for Android 9 and below: $externalStorage")
+                    File(externalStorage, fileName)
                 }
 
+                Log.d("SalesFragment", "Saving report to: ${file.absolutePath}")
+
+                // Create workbook and sheet for the Excel file
                 val workbook = HSSFWorkbook()
                 val sheet = workbook.createSheet("Sales Report")
 
                 // Create headers
+                Log.d("SalesFragment", "Creating headers in the Excel sheet.")
                 val headerRow = sheet.createRow(0)
                 headerRow.createCell(0).setCellValue("Item Name")
                 headerRow.createCell(1).setCellValue("Quantity")
@@ -345,6 +357,7 @@ class SalesFragment : Fragment() {
 
                 // Write sales data
                 var rowIndex = 1
+                Log.d("SalesFragment", "Writing sales data to the Excel sheet.")
                 salesData.forEach { sale ->
                     val row = sheet.createRow(rowIndex++)
                     row.createCell(0).setCellValue(sale.itemName)
@@ -355,6 +368,7 @@ class SalesFragment : Fragment() {
                 }
 
                 // Write expense data
+                Log.d("SalesFragment", "Writing expense data to the Excel sheet.")
                 expensesData.forEach { expense ->
                     val row = sheet.createRow(rowIndex++)
                     row.createCell(5).setCellValue(expense.amount.toString())
@@ -362,22 +376,25 @@ class SalesFragment : Fragment() {
                 }
 
                 // Save the Excel file
+                Log.d("SalesFragment", "Saving Excel file to output stream.")
                 val outputStream = FileOutputStream(file)
                 workbook.write(outputStream)
                 outputStream.close()
 
-                // Notify user
+                // Notify user and log success
+                Log.d("SalesFragment", "Report saved successfully at: ${file.absolutePath}")
                 showToast("Report saved locally: ${file.absolutePath}")
                 openFile(file)
             } catch (e: Exception) {
-                e.printStackTrace()
+                // Log error and show toast
+                Log.e("SalesFragment", "Error saving report: ${e.message}", e)
                 showToast("Error saving report: ${e.message}")
             }
         }
     }
 
     private fun openFile(file: File) {
-        val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.provider", file)
+        val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
 
         val intent = Intent(Intent.ACTION_VIEW)
         intent.setDataAndType(uri, "application/vnd.ms-excel")
