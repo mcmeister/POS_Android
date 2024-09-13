@@ -11,10 +11,11 @@ android {
 
     defaultConfig {
         applicationId = "com.example.pos"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+        multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -71,6 +72,11 @@ android {
 }
 
 dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
+    // Excel
+    implementation("org.apache.poi:poi:5.2.3")
+    implementation("org.apache.poi:poi-ooxml:5.2.3")
+
     // Google Sheets API
     implementation("com.google.apis:google-api-services-sheets:v4-rev612-1.25.0")
 

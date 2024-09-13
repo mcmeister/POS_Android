@@ -5,8 +5,11 @@ package com.example.pos
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +19,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +30,9 @@ import com.google.api.services.drive.Drive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -59,23 +66,16 @@ class SalesFragment : Fragment() {
                     Log.d("SalesFragment", "Sign-in successful, proceeding with export")
                     exportSalesToGoogleDrive()
                 }, {
-                    // Sign-in failed, show error
-                    Log.e("SalesFragment", "Sign-in failed in handleSignInResult")
-                    showToast("Failed to sign in to Google Drive")
+                    // Sign-in failed, show error and save report locally
+                    Log.e("SalesFragment", "Sign-in failed in handleSignInResult, saving report locally")
+                    showToast("Failed to sign in to Google Drive. Saving report locally.")
+                    saveReportLocally()
                 })
             }
         } else {
-            // Log the failure or cancellation reason
             Log.e("SalesFragment", "Sign-In canceled or failed, resultCode: ${result.resultCode}")
-
-            // Extract any available extra data
-            val extraData = result.data?.extras?.keySet()?.joinToString { key ->
-                "$key: ${result.data?.extras?.get(key)}"
-            } ?: "No additional data"
-
-            // Log and show the reason in the toast
-            Log.e("SalesFragment", "Intent data: $extraData")
-            showToast("Google Sign-In canceled. Result code: ${result.resultCode}, Data: $extraData")
+            showToast("Google Sign-In canceled. Saving report locally.")
+            saveReportLocally()
         }
     }
 
@@ -159,12 +159,12 @@ class SalesFragment : Fragment() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_AUTHORIZATION && resultCode == Activity.RESULT_OK) {
-            // The user has granted the required permissions, retry the spreadsheet creation
             lifecycleScope.launch {
                 exportSalesToGoogleDrive()
             }
         } else {
-            showToast("Google authorization failed. Cannot proceed with export.")
+            showToast("Google authorization failed. Saving report locally.")
+            saveReportLocally()
         }
     }
 
@@ -300,6 +300,90 @@ class SalesFragment : Fragment() {
                     SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
         }
         return header + data
+    }
+
+    private fun saveReportLocally() {
+        lifecycleScope.launch {
+            try {
+                // Retrieve sales and expense data from the database
+                val salesData = withContext(Dispatchers.IO) {
+                    database.saleDao().getSalesReport(startDate, endDate)
+                }
+
+                val expensesData = withContext(Dispatchers.IO) {
+                    database.expenseDao().getAllExpenses()
+                }
+
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val startDateFormatted = dateFormat.format(startDate)
+                val endDateFormatted = dateFormat.format(endDate)
+
+                // Create the report file name using the formatted dates
+                val fileName = "$startDateFormatted-$endDateFormatted.xls"
+                val file = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    File(requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
+                } else {
+                    File(Environment.getExternalStorageDirectory(), fileName)
+                }
+
+                val workbook = HSSFWorkbook()  // Use HSSFWorkbook to create a .xls file
+                val sheet = workbook.createSheet("Sales Report")
+
+                // Create headers, excluding the ID columns
+                val headerRow = sheet.createRow(0)
+                headerRow.createCell(0).setCellValue("Item Name")
+                headerRow.createCell(1).setCellValue("Quantity")
+                headerRow.createCell(2).setCellValue("Sale Price")
+                headerRow.createCell(3).setCellValue("Sales Channel")
+                headerRow.createCell(4).setCellValue("Timestamp")
+                headerRow.createCell(5).setCellValue("Amount")
+                headerRow.createCell(6).setCellValue("Expense Timestamp")
+
+                // Write sales data, excluding the ID column
+                var rowIndex = 1
+                salesData.forEach { sale ->
+                    val row = sheet.createRow(rowIndex++)
+                    row.createCell(0).setCellValue(sale.itemName)
+                    row.createCell(1).setCellValue(sale.quantity.toString())
+                    row.createCell(2).setCellValue(sale.salePrice.toString())
+                    row.createCell(3).setCellValue(sale.salesChannel)
+                    row.createCell(4).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
+                }
+
+                // Write expense data, excluding the ID column
+                expensesData.forEach { expense ->
+                    val row = sheet.createRow(rowIndex++)
+                    row.createCell(5).setCellValue(expense.amount.toString())
+                    row.createCell(6).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(expense.timestamp))
+                }
+
+                // Save the Excel file
+                val outputStream = FileOutputStream(file)
+                workbook.write(outputStream)
+                outputStream.close()
+
+                // Notify user
+                showToast("Report saved locally: ${file.absolutePath}")
+                openFile(file)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showToast("Error saving report: ${e.message}")
+            }
+        }
+    }
+
+    private fun openFile(file: File) {
+        val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.provider", file)
+
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(uri, "application/vnd.ms-excel")
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            showToast("No app found to open the report")
+        }
     }
 
     // Show the date picker dialog to select a date
