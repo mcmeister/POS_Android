@@ -64,13 +64,18 @@ class SalesFragment : Fragment() {
                     showToast("Failed to sign in to Google Drive")
                 })
             }
-        }else {
+        } else {
             // Log the failure or cancellation reason
             Log.e("SalesFragment", "Sign-In canceled or failed, resultCode: ${result.resultCode}")
-            result.data?.let {
-                Log.e("SalesFragment", "Intent data: ${it.extras}")
-            }
-            showToast("Google Sign-In canceled")
+
+            // Extract any available extra data
+            val extraData = result.data?.extras?.keySet()?.joinToString { key ->
+                "$key: ${result.data?.extras?.get(key)}"
+            } ?: "No additional data"
+
+            // Log and show the reason in the toast
+            Log.e("SalesFragment", "Intent data: $extraData")
+            showToast("Google Sign-In canceled. Result code: ${result.resultCode}, Data: $extraData")
         }
     }
 
