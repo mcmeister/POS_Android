@@ -42,6 +42,7 @@ glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 google-api-client = { module = "com.google.api-client:google-api-client", version.ref = "googleApiClientAndroid" }
 google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClientAndroid" }
 google-api-client-android-v1420 = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClientAndroidVersion" }
+google-api-client-auth = { module = "com.google.api-client:google-api-client-auth", version.ref = "googleApiClientAndroid" }
 google-api-client-gson = { module = "com.google.api-client:google-api-client-gson", version.ref = "googleApiClientAndroid" }
 google-api-client-gson-v1420 = { module = "com.google.api-client:google-api-client-gson", version.ref = "googleApiClientGson" }
 google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version.ref = "googleApiServicesDrive" }

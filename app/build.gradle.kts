@@ -60,6 +60,9 @@ android {
 }
 
 dependencies {
+    // Google Sheets API
+    implementation("com.google.apis:google-api-services-sheets:v4-rev612-1.25.0")
+
     // Google Play Services - Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
@@ -68,8 +71,12 @@ dependencies {
 
     // Google HTTP Client and Jackson
     implementation("com.google.http-client:google-http-client-jackson2:1.42.0")
-    implementation("com.google.api-client:google-api-client-android:1.31.5")
-    implementation("com.google.api-client:google-api-client-gson:1.31.5")
+    implementation("com.google.api-client:google-api-client-android:1.32.1")
+    implementation("com.google.api-client:google-api-client-gson:1.32.1")
+    implementation("com.google.http-client:google-http-client-android:1.40.1")
+
+    // Optional: For working with HTTP on Android
+    implementation("com.google.http-client:google-http-client-gson:1.42.0")
 
     // Gson for JSON parsing
     implementation("com.google.code.gson:gson:2.9.0")

@@ -5,6 +5,7 @@ package com.example.pos
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -21,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.api.services.drive.Drive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,15 +42,35 @@ class SalesFragment : Fragment() {
 
     private lateinit var googleDrive: GoogleDrive
 
+    companion object {
+        const val REQUEST_AUTHORIZATION = 1001
+    }
+
     // Use ActivityResultLauncher to handle Google Sign-In
     private val signInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        Log.d("SalesFragment", "Sign-In resultCode: ${result.resultCode}")
+        Log.d("SalesFragment", "Sign-In intent data: ${result.data?.extras}")
+
         if (result.resultCode == Activity.RESULT_OK) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            googleDrive.handleSignInResult(task, {
-                exportSalesToGoogleDrive()
-            }, {
-                showToast("Failed to sign in to Google Drive")
-            })
+            lifecycleScope.launch {
+                googleDrive.handleSignInResult(task, {
+                    // Sign-in success, proceed with export
+                    Log.d("SalesFragment", "Sign-in successful, proceeding with export")
+                    exportSalesToGoogleDrive()
+                }, {
+                    // Sign-in failed, show error
+                    Log.e("SalesFragment", "Sign-in failed in handleSignInResult")
+                    showToast("Failed to sign in to Google Drive")
+                })
+            }
+        }else {
+            // Log the failure or cancellation reason
+            Log.e("SalesFragment", "Sign-In canceled or failed, resultCode: ${result.resultCode}")
+            result.data?.let {
+                Log.e("SalesFragment", "Intent data: ${it.extras}")
+            }
+            showToast("Google Sign-In canceled")
         }
     }
 
@@ -56,6 +78,9 @@ class SalesFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_sales, container, false)
+
+        googleDrive = GoogleDrive(this)
+        googleDrive.initializeGoogleSignIn()
 
         // Initialize views
         recyclerView = view.findViewById(R.id.recycler_view_sales)
@@ -110,17 +135,32 @@ class SalesFragment : Fragment() {
         }
 
         buttonExport.setOnClickListener {
-            if (googleDrive.googleAccount == null) {
-                googleDrive.signInToGoogle(signInLauncher)
-            } else {
+            Log.d("SalesFragment", "Export button clicked, checking sign-in status...")
+            lifecycleScope.launch {
+                googleDrive.signInToGoogle(signInLauncher) {
+                Log.d("SalesFragment", "Sign-in successful, proceeding with export")
                 exportSalesToGoogleDrive()
             }
         }
+            }
 
         filterSales(textViewExpenseSum, textViewProfitSum)
         fetchItems()
 
         return view
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_AUTHORIZATION && resultCode == Activity.RESULT_OK) {
+            // The user has granted the required permissions, retry the spreadsheet creation
+            lifecycleScope.launch {
+                exportSalesToGoogleDrive()
+            }
+        } else {
+            showToast("Google authorization failed. Cannot proceed with export.")
+        }
     }
 
     // Function to save the expense in the database with the current timestamp
@@ -145,13 +185,14 @@ class SalesFragment : Fragment() {
         lifecycleScope.launch {
             Log.d("SalesFragment", "Attempting to get Google Drive service")
             val driveService = googleDrive.getDriveService()
-            if (driveService == null) {
-                Log.e("SalesFragment", "Google Drive service is null. Aborting export.")
-                showToast("Failed to connect to Google Drive")
+            val sheetsService = googleDrive.getSheetsService()
+            if (driveService == null || sheetsService == null) {
+                Log.e("SalesFragment", "Google services are null. Aborting export.")
+                showToast("Failed to connect to Google services")
                 return@launch
             }
 
-            Log.d("SalesFragment", "Google Drive service successfully retrieved")
+            Log.d("SalesFragment", "Google Drive and Sheets services successfully retrieved")
 
             // Log export start
             Log.d("SalesFragment", "Starting export to Google Drive")
@@ -179,33 +220,79 @@ class SalesFragment : Fragment() {
 
             // Step 3: Retrieve sales data from the database for the selected date range
             val salesData = withContext(Dispatchers.IO) {
-                database.saleDao().getSalesBetween(startDate, endDate)
+                database.saleDao().getSalesReport(startDate, endDate)
             }
             Log.d("SalesFragment", "Sales data retrieved successfully")
 
-            // Step 4: Convert sales data to CSV format
+            // Step 4: Retrieve expense data from the database
+            val expensesData = withContext(Dispatchers.IO) {
+                database.expenseDao().getAllExpenses()
+            }
+            Log.d("SalesFragment", "Expenses data retrieved successfully")
+
+            // Step 5: Convert sales data to CSV format
             val csvData = salesDataToCSV(salesData)
 
-            // Step 5: Format the startDate and endDate as 'yyyy-MM-dd'
+            // Step 6: Format the startDate and endDate as 'yyyy-MM-dd'
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val startDateFormatted = dateFormat.format(startDate)
             val endDateFormatted = dateFormat.format(endDate)
 
-            // Step 6: Create the report file name using the formatted dates
+            // Step 7: Create the report file name using the formatted dates
             val fileName = "$startDateFormatted-$endDateFormatted.csv"
 
-            // Step 7: Save the report to Google Drive
+            // Step 8: Save the CSV report to Google Drive
             googleDrive.saveReportToDrive(driveService, fileName, reportsFolderId, csvData.toByteArray())
-            Log.d("SalesFragment", "Export to Google Drive completed successfully")
-            showToast("Export to Google Drive completed successfully")
+
+            // Step 9: Create and populate a spreadsheet from the CSV and expenses
+            val spreadsheetId = googleDrive.createSpreadsheet(
+                driveService, sheetsService, reportsFolderId, fileName, csvData, expensesData, salesData
+            )
+            if (spreadsheetId == null) {
+                Log.e("SalesFragment", "Failed to create Google Spreadsheet")
+                showToast("Failed to create Spreadsheet")
+                return@launch
+            }
+
+            Log.d("SalesFragment", "Spreadsheet created with ID: $spreadsheetId")
+
+            // Step 10: Delete the original CSV file from the Reports folder
+            deleteCsvFile(driveService, reportsFolderId, fileName)
+
+            Log.d("SalesFragment", "Export to Google Drive and spreadsheet creation completed successfully")
+            showToast("Export to Google Drive and Spreadsheet completed successfully")
         }
     }
 
-    // Convert sales data to CSV format
-    private fun salesDataToCSV(sales: List<Sale>): String {
-        val header = "Sale ID, Item Name, Quantity, Raw Price, Sale Price, Profit, Sales Channel, Timestamp\n"
+    // Function to delete the CSV file after it's used to populate the spreadsheet
+    private suspend fun deleteCsvFile(driveService: Drive, folderId: String, fileName: String) {
+        return withContext(Dispatchers.IO) {
+            try {
+                val query = "mimeType='text/csv' and name='$fileName' and '$folderId' in parents"
+                val fileList = driveService.files().list()
+                    .setQ(query)
+                    .setSpaces("drive")
+                    .execute()
+
+                if (fileList.files.isNotEmpty()) {
+                    val fileId = fileList.files[0].id
+                    driveService.files().delete(fileId).execute()
+                    Log.d("SalesFragment", "CSV file $fileName deleted successfully from Google Drive")
+                } else {
+                    Log.e("SalesFragment", "CSV file $fileName not found in folder $folderId")
+                }
+            } catch (e: Exception) {
+                Log.e("SalesFragment", "Error deleting CSV file: $fileName", e)
+            }
+        }
+    }
+
+    // Convert sales data to CSV format with formatted timestamp
+    private fun salesDataToCSV(sales: List<SalesReport>): String {
+        val header = "Item Name, Quantity, Sale Price, Sales Channel, Timestamp\n"
         val data = sales.joinToString("\n") { sale ->
-            "${sale.id},${sale.itemName},${sale.quantity},${sale.rawPrice},${sale.salePrice},${sale.profit},${sale.salesChannel},${sale.timestamp}"
+            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel}," +
+                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
         }
         return header + data
     }
