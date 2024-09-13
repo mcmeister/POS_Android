@@ -344,7 +344,7 @@ class SalesFragment : Fragment() {
                 val workbook = HSSFWorkbook()
                 val sheet = workbook.createSheet("Sales Report")
 
-                // Create headers
+                // Create headers for sales data
                 Log.d("SalesFragment", "Creating headers in the Excel sheet.")
                 val headerRow = sheet.createRow(0)
                 headerRow.createCell(0).setCellValue("Item Name")
@@ -352,8 +352,6 @@ class SalesFragment : Fragment() {
                 headerRow.createCell(2).setCellValue("Sale Price")
                 headerRow.createCell(3).setCellValue("Sales Channel")
                 headerRow.createCell(4).setCellValue("Timestamp")
-                headerRow.createCell(5).setCellValue("Amount")
-                headerRow.createCell(6).setCellValue("Expense Timestamp")
 
                 // Write sales data
                 var rowIndex = 1
@@ -367,13 +365,41 @@ class SalesFragment : Fragment() {
                     row.createCell(4).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
                 }
 
+                // Add two-column gap before starting expense data
+                rowIndex += 2
+
+                // Create headers for expense data
+                val expenseHeaderRow = sheet.createRow(rowIndex++)
+                expenseHeaderRow.createCell(0).setCellValue("Amount")
+                expenseHeaderRow.createCell(1).setCellValue("Expense Timestamp")
+
                 // Write expense data
                 Log.d("SalesFragment", "Writing expense data to the Excel sheet.")
                 expensesData.forEach { expense ->
                     val row = sheet.createRow(rowIndex++)
-                    row.createCell(5).setCellValue(expense.amount.toString())
-                    row.createCell(6).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(expense.timestamp))
+                    row.createCell(0).setCellValue(expense.amount.toString())
+                    row.createCell(1).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(expense.timestamp))
                 }
+
+                // Add two-column gap before starting calculations
+                rowIndex += 2
+
+                // Calculate and write total sales, total expenses, and profit
+                val totalSales = salesData.sumOf { it.salePrice }
+                val totalExpenses = expensesData.sumOf { it.amount }
+                val profit = totalSales - totalExpenses
+
+                val calcRow = sheet.createRow(rowIndex++)
+                calcRow.createCell(0).setCellValue("Total Sales")
+                calcRow.createCell(1).setCellValue(totalSales.toString())
+
+                val expenseRow = sheet.createRow(rowIndex++)
+                expenseRow.createCell(0).setCellValue("Total Expenses")
+                expenseRow.createCell(1).setCellValue(totalExpenses.toString())
+
+                val profitRow = sheet.createRow(rowIndex++)
+                profitRow.createCell(0).setCellValue("Profit")
+                profitRow.createCell(1).setCellValue(profit.toString())
 
                 // Save the Excel file
                 Log.d("SalesFragment", "Saving Excel file to output stream.")
