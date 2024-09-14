@@ -6,5 +6,6 @@ data class SalesReport(
     val quantity: Int,
     val salePrice: Double,
     val salesChannel: String,
+    val profit: Double,
     val timestamp: Long
 )

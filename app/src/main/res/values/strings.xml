@@ -23,7 +23,7 @@
     <string name="quantity">Quantity:</string>
     <string name="raw_price">Raw Price:</string>
     <string name="sale_price">Sale Price:</string>
-    <string name="profit">Profit:</string>
+    <string name="profit">Profit: THB %.0f</string>
     <string name="timestamp">Date:</string>
     <string name="export">Export</string>
     <string name="item_name">Item:</string>

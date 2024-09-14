@@ -98,6 +98,7 @@ class SalesFragment : Fragment() {
         // TextViews for displaying the sum of Expenses and Profits
         val textViewExpenseSum: TextView = view.findViewById(R.id.text_view_expense_sum)
         val textViewProfitSum: TextView = view.findViewById(R.id.text_view_profit_sum)
+        val textViewSalesSum: TextView = view.findViewById(R.id.text_view_sales_sum)
 
         // Initialize the database
         database = AppDatabase.getDatabase(requireContext())
@@ -128,14 +129,14 @@ class SalesFragment : Fragment() {
         buttonStartDate.setOnClickListener {
             showDatePicker { date ->
                 startDate = date
-                filterSales(textViewExpenseSum, textViewProfitSum)
+                filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
             }
         }
 
         buttonEndDate.setOnClickListener {
             showDatePicker { date ->
                 endDate = date
-                filterSales(textViewExpenseSum, textViewProfitSum)
+                filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
             }
         }
 
@@ -149,7 +150,7 @@ class SalesFragment : Fragment() {
             }
         }
 
-        filterSales(textViewExpenseSum, textViewProfitSum)
+        filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
         fetchItems()
 
         return view
@@ -181,7 +182,8 @@ class SalesFragment : Fragment() {
             showToast("Expense saved: $amount")
 
             // Refresh UI after expense is saved
-            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!, view?.findViewById(R.id.text_view_profit_sum)!!)
+            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!, view?.findViewById(R.id.text_view_profit_sum)!!,
+                view?.findViewById(R.id.text_view_sales_sum)!!)
         }
     }
 
@@ -307,9 +309,9 @@ class SalesFragment : Fragment() {
 
     // Convert sales data to CSV format with formatted timestamp
     private fun salesDataToCSV(sales: List<SalesReport>): String {
-        val header = "Item Name, Quantity, Sale Price, Sales Channel, Timestamp\n"
+        val header = "Item Name, Quantity, Sale Price, Sales Channel, Total, Timestamp\n"
         val data = sales.joinToString("\n") { sale ->
-            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel}," +
+            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},${sale.profit}" +
                     SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
         }
         return header + data
@@ -370,8 +372,8 @@ class SalesFragment : Fragment() {
 
                 // Create headers for expense data
                 val expenseHeaderRow = sheet.createRow(rowIndex++)
-                expenseHeaderRow.createCell(0).setCellValue("Amount")
-                expenseHeaderRow.createCell(1).setCellValue("Expense Timestamp")
+                expenseHeaderRow.createCell(0).setCellValue("Expense Amount")
+                expenseHeaderRow.createCell(1).setCellValue("Timestamp")
 
                 // Write expense data
                 Log.d("SalesFragment", "Writing expense data to the Excel sheet.")
@@ -385,7 +387,7 @@ class SalesFragment : Fragment() {
                 rowIndex += 2
 
                 // Calculate and write total sales, total expenses, and profit
-                val totalSales = salesData.sumOf { it.salePrice }
+                val totalSales = salesData.sumOf { it.profit}
                 val totalExpenses = expensesData.sumOf { it.amount }
                 val profit = totalSales - totalExpenses
 
@@ -451,7 +453,7 @@ class SalesFragment : Fragment() {
 
     // Fetch sales from the database based on the date range and update the RecyclerView
     @SuppressLint("NotifyDataSetChanged")
-    private fun filterSales(expenseTextView: TextView, salesTextView: TextView) {
+    private fun filterSales(expenseTextView: TextView, salesTextView: TextView, profitTextView: TextView) {
         lifecycleScope.launch {
             val adjustedStartDate = getAdjustedDate(startDate, isStart = true)
             val adjustedEndDate = getAdjustedDate(endDate, isStart = false)
@@ -466,9 +468,14 @@ class SalesFragment : Fragment() {
                 database.expenseDao().getTotalExpenseBetween(adjustedStartDate, adjustedEndDate)
             }
 
-            // Fetch total profit for the selected date range
+            // Fetch total sales for the selected date range
             val totalSales = withContext(Dispatchers.IO) {
                 database.saleDao().getTotalSalesBetween(adjustedStartDate, adjustedEndDate)
+            }
+
+            // Fetch total profit for the selected date range
+            val totalProfit = withContext(Dispatchers.IO) {
+                database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
             }
 
             // Update the RecyclerView
@@ -479,6 +486,7 @@ class SalesFragment : Fragment() {
             // Update TextViews with formatted values
             expenseTextView.text = getString(R.string.total_expense, totalExpenses)
             salesTextView.text = getString(R.string.total_sales, totalSales)
+            profitTextView.text = getString(R.string.profit, totalProfit)
         }
     }
 

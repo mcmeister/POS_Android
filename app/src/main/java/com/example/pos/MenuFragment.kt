@@ -53,7 +53,6 @@ class MenuFragment : Fragment() {
         addItemLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
-            // Log when returning from EditItemActivity
             android.util.Log.d("MenuFragment", "Returned from EditItemActivity with result: ${result.resultCode}")
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
                 val newItem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -62,10 +61,20 @@ class MenuFragment : Fragment() {
                     @Suppress("DEPRECATION")
                     result.data?.getParcelableExtra("new_item")
                 }
+
                 newItem?.let {
-                    android.util.Log.d("MenuFragment", "New item added with ID: ${it.id}")
-                    items.add(it)
-                    adapter.notifyItemInserted(items.size - 1)
+                    val index = items.indexOfFirst { item -> item.id == it.id }
+                    if (index != -1) {
+                        // Update the existing item
+                        items[index] = it
+                        adapter.notifyItemChanged(index)
+                        android.util.Log.d("MenuFragment", "Updated item with ID: ${it.id}")
+                    } else {
+                        // Add a new item
+                        items.add(it)
+                        adapter.notifyItemInserted(items.size - 1)
+                        android.util.Log.d("MenuFragment", "New item added with ID: ${it.id}")
+                    }
                 }
             }
         }

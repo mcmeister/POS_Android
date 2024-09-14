@@ -26,6 +26,9 @@ interface SaleDao {
     @Query("SELECT SUM(salePrice)*quantity FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
     suspend fun getTotalSalesBetween(startDate: Long, endDate: Long): Double
 
-    @Query("SELECT id, itemName, quantity, salePrice, salesChannel, timestamp FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
+    @Query("SELECT SUM(profit) FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
+    suspend fun getTotalProfitBetween(startDate: Long, endDate: Long): Double
+
+    @Query("SELECT id, itemName, quantity, salePrice, salesChannel, profit, timestamp FROM sale WHERE timestamp >= :startDate AND timestamp <= :endDate")
     fun getSalesReport(startDate: Long, endDate: Long): List<SalesReport>
 }

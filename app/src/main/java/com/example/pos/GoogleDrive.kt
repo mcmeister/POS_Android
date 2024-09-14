@@ -164,7 +164,7 @@ class GoogleDrive(private val fragment: Fragment) {
 
     // Convert expense data to a formatted list for spreadsheet
     private fun expensesDataToCSV(expenses: List<Expense>): List<List<String>> {
-        val header = listOf("Amount", "Timestamp")
+        val header = listOf("Expense amount", "Timestamp")
         val data = expenses.map { expense ->
             listOf(
                 expense.amount.toString(),
