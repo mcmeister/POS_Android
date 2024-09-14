@@ -96,7 +96,7 @@
             android:layout_weight="1"
             android:text="@string/total_expense"
             android:textColor="@android:color/holo_red_light"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:gravity="start"
             android:paddingStart="12dp"
             tools:ignore="RtlSymmetry" />
@@ -108,7 +108,7 @@
             android:layout_weight="1"
             android:text="@string/profit"
             android:textColor="@android:color/holo_blue_light"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:gravity="end"
             android:paddingEnd="12dp"
             tools:ignore="RtlSymmetry" />
@@ -120,7 +120,7 @@
             android:layout_weight="1"
             android:text="@string/total_sales"
             android:textColor="@android:color/holo_green_light"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:gravity="center"
             android:paddingEnd="12dp"
             tools:ignore="RtlSymmetry" />
