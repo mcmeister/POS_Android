@@ -470,13 +470,11 @@ class SalesFragment : Fragment() {
 
             // Fetch total sales for the selected date range
             val totalSales = withContext(Dispatchers.IO) {
-                database.saleDao().getTotalSalesBetween(adjustedStartDate, adjustedEndDate)
-            }
-
-            // Fetch total profit for the selected date range
-            val totalProfit = withContext(Dispatchers.IO) {
                 database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
             }
+
+            // Calculate total profit
+            val totalProfit = totalSales - totalExpenses
 
             // Update the RecyclerView
             sales.clear()
