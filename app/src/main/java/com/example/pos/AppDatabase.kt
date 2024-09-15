@@ -7,11 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Item::class, Sale::class, SalesChannel::class, Expense::class], version = 7, exportSchema = false)
+@Database(entities = [Item::class, Sale::class, SalesChannel::class, Expense::class], version = 8, exportSchema = false) // Updated to version 8
 abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
     abstract fun saleDao(): SaleDao
-    abstract fun expenseDao(): ExpenseDao  // Add ExpenseDao
+    abstract fun expenseDao(): ExpenseDao
 
     companion object {
         @Volatile
@@ -54,13 +54,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // New migration logic from version 7 to 8
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add 'cancelled' column to 'sale' table
+                db.execSQL("""
+                    ALTER TABLE `sale` ADD COLUMN `cancelled` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
+
+                // Add 'discount' and 'deleted' columns to 'sales_channel' table
+                db.execSQL("""
+                    ALTER TABLE `sales_channel` ADD COLUMN `discount` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
+
+                db.execSQL("""
+                    ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java, "pos_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build().also { instance = it }
             }
     }

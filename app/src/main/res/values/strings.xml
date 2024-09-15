@@ -33,4 +33,11 @@
     <string name="total_sales">Sales: THB %.0f</string>
     <string name="splash_logo">Splash Logo</string>
     <string name="total">Total:</string>
+    <string name="channel_list_name">Channel Name</string>
+    <string name="discount">Discount</string>
+    <string name="delete_channel">Delete Channel</string>
+    <string name="sales_channels_list">Sales Channels List</string>
+    <string name="edit_sales_channel_name">Name</string>
+    <string name="edit_sales_channel_discount">Discount</string>
+    <string name="cancel_sale">Cancel Order</string>
 </resources>

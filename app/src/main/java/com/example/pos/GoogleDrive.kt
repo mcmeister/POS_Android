@@ -177,7 +177,7 @@ class GoogleDrive(private val fragment: Fragment) {
     // Function to calculate total sales, total expense, and profit
     private fun calculateProfit(sales: List<SalesReport>, expenses: List<Expense>): List<List<String>> {
         // Calculate total sales: SUM(SalePrice * Quantity)
-        val totalSales = sales.sumOf { it.salePrice * it.quantity }
+        val totalSales = sales.sumOf { it.profit }
 
         // Calculate total expense: SUM(expense.amount)
         val totalExpense = expenses.sumOf { it.amount }

@@ -9,6 +9,7 @@ import android.widget.*
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
@@ -99,8 +100,9 @@ class EditItemActivity : AppCompatActivity() {
     private fun loadSalesChannels() {
         lifecycleScope.launch {
             existingSalesChannels = withContext(Dispatchers.IO) {
-                val channels = database.saleDao().getAllSalesChannels().toMutableList()
+                val channels = database.saleDao().getActiveSalesChannels().toMutableList()
                 channels.add("Add new...") // Add the option to enter a new sales channel
+                channels.add("Edit...")    // Add the option to edit existing sales channels
                 channels
             }
 
@@ -112,7 +114,7 @@ class EditItemActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             salesChannelDropdown.adapter = adapter
 
-            // Handle user selecting "Add new" option
+            // Handle user selecting "Add new" or "Edit..." option
             salesChannelDropdown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
                     parent: AdapterView<*>?,
@@ -120,8 +122,9 @@ class EditItemActivity : AppCompatActivity() {
                     position: Int,
                     id: Long
                 ) {
-                    if (existingSalesChannels[position] == "Add new...") {
-                        showNewSalesChannelDialog()
+                    when (existingSalesChannels[position]) {
+                        "Add new..." -> showNewSalesChannelDialog()
+                        "Edit..." -> showEditSalesChannelsDialog() // Show edit popup
                     }
                 }
 
@@ -154,6 +157,101 @@ class EditItemActivity : AppCompatActivity() {
             // Reload the sales channels and include the newly added channel
             loadSalesChannels()
         }
+    }
+
+    private fun showEditSalesChannelsDialog() {
+        val builder = android.app.AlertDialog.Builder(this)
+        builder.setTitle("Sales Channels List")
+        builder.setCancelable(false) // Prevent the dialog from being dismissed automatically
+
+        // Inflate the custom layout for the popup window
+        val view = layoutInflater.inflate(R.layout.dialog_edit_sales_channels, null)
+        val salesChannelsList = view.findViewById<LinearLayout>(R.id.sales_channels_list)
+
+        lifecycleScope.launch {
+            val salesChannels = withContext(Dispatchers.IO) {
+                database.saleDao().getAllSalesChannelsWithDiscounts()
+            }
+
+            salesChannels.forEach { channel ->
+                val rowView = layoutInflater.inflate(R.layout.row_sales_channel, salesChannelsList, false)
+                val editTextName = rowView.findViewById<EditText>(R.id.edit_text_channel_name)
+                val editTextDiscount = rowView.findViewById<EditText>(R.id.edit_text_channel_discount)
+                val deleteButton = rowView.findViewById<ImageButton>(R.id.button_delete_channel)
+
+                editTextName.setText(channel.name)
+                editTextDiscount.setText(channel.discount.toString())
+
+                // Store the channel ID in the view tag
+                rowView.tag = channel.id
+
+                // Handle delete button click
+                deleteButton.setOnClickListener {
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.IO) {
+                            database.saleDao().markChannelAsDeleted(channel.id)
+                        }
+                        salesChannelsList.removeView(rowView) // Remove row from UI
+                    }
+                }
+
+                salesChannelsList.addView(rowView)
+            }
+        }
+
+        builder.setView(view)
+        builder.setPositiveButton("Save", null) // We'll set the click listener later
+        builder.setNegativeButton("Cancel", null) // We'll set the click listener later
+
+        val dialog = builder.create()
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+            val negativeButton = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
+
+            positiveButton.setOnClickListener {
+                // Save all changes to the database
+                lifecycleScope.launch {
+                    salesChannelsList.children.forEach { rowView ->
+                        val editTextName = rowView.findViewById<EditText>(R.id.edit_text_channel_name)
+                        val editTextDiscount = rowView.findViewById<EditText>(R.id.edit_text_channel_discount)
+                        val channelName = editTextName.text.toString().trim()
+                        val discount = editTextDiscount.text.toString().toIntOrNull() ?: 0
+
+                        // Get the channelId from the tag
+                        val channelId = rowView.tag as? Int ?: return@forEach
+
+                        // Update the database with the new values
+                        withContext(Dispatchers.IO) {
+                            database.saleDao().updateSalesChannel(channelName, discount, channelId)
+                        }
+                    }
+                    dialog.dismiss()
+                }
+            }
+
+            negativeButton.setOnClickListener {
+                // Show confirmation dialog
+                val confirmBuilder = android.app.AlertDialog.Builder(this)
+                confirmBuilder.setMessage("Discard changes?")
+                confirmBuilder.setPositiveButton("Yes") { confirmDialog, _ ->
+                    // Dismiss both dialogs
+                    confirmDialog.dismiss()
+                    dialog.dismiss()
+                }
+                confirmBuilder.setNegativeButton("No") { confirmDialog, _ ->
+                    // Keep the edit dialog open
+                    confirmDialog.dismiss()
+                }
+                confirmBuilder.show()
+            }
+        }
+
+        dialog.setOnDismissListener {
+            // Refresh the sales channels when the dialog is dismissed
+            loadSalesChannels()
+        }
+
+        dialog.show()
     }
 
     private fun showPhotoOptionsDialog() {

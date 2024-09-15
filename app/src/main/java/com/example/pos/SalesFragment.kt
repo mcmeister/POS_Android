@@ -44,6 +44,7 @@ class SalesFragment : Fragment() {
     private lateinit var database: AppDatabase
     private val sales = mutableListOf<Sale>()
     private val items = mutableListOf<Item>()
+    private val salesChannels = mutableListOf<SalesChannel>()
     private var startDate: Long = 0
     private var endDate: Long = System.currentTimeMillis()
 
@@ -84,6 +85,7 @@ class SalesFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_sales, container, false)
 
+        // Initialize Google Drive functionality
         googleDrive = GoogleDrive(this)
         googleDrive.initializeGoogleSignIn()
 
@@ -103,12 +105,29 @@ class SalesFragment : Fragment() {
         // Initialize the database
         database = AppDatabase.getDatabase(requireContext())
 
-        // Set up the RecyclerView with the adapter
-        adapter = SalesAdapter(sales, items)
-        recyclerView.layoutManager = LinearLayoutManager(context)
-        recyclerView.adapter = adapter
+        // Disable the submit button initially until valid input is detected
+        buttonSubmitExpense.isEnabled = false
 
-        // Listen to changes in the expense input field
+        // Fetch sales channels before setting up the adapter
+        lifecycleScope.launch {
+            // Fetch sales channels (ensure this completes before setting the adapter)
+            fetchSalesChannels()
+
+            // Initialize the adapter after sales channels are loaded
+            adapter = SalesAdapter(sales, items, salesChannels) { sale ->
+                cancelSale(sale)
+            }
+            recyclerView.layoutManager = LinearLayoutManager(context)
+            recyclerView.adapter = adapter
+
+            // Fetch items after setting up the adapter
+            fetchItems()
+
+            // Filter sales after items and sales channels are ready
+            filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
+        }
+
+        // Listen to changes in the expense input field and enable/disable the button
         editTextExpense.addTextChangedListener {
             buttonSubmitExpense.isEnabled = it.toString().isNotEmpty()
         }
@@ -125,7 +144,7 @@ class SalesFragment : Fragment() {
             }
         }
 
-        // Date picker buttons
+        // Date picker buttons for Start Date
         buttonStartDate.setOnClickListener {
             showDatePicker { date ->
                 startDate = date
@@ -133,6 +152,7 @@ class SalesFragment : Fragment() {
             }
         }
 
+        // Date picker buttons for End Date
         buttonEndDate.setOnClickListener {
             showDatePicker { date ->
                 endDate = date
@@ -140,6 +160,7 @@ class SalesFragment : Fragment() {
             }
         }
 
+        // Export button handling
         buttonExport.setOnClickListener {
             Log.d("SalesFragment", "Export button clicked, checking sign-in status...")
             lifecycleScope.launch {
@@ -149,9 +170,6 @@ class SalesFragment : Fragment() {
                 }
             }
         }
-
-        filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
-        fetchItems()
 
         return view
     }
@@ -187,6 +205,26 @@ class SalesFragment : Fragment() {
         }
     }
 
+    // Cancel the sale and refresh the UI
+    private fun cancelSale(sale: Sale) {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                database.saleDao().markSaleAsCancelled(sale.id)  // Mark sale as canceled in the database
+            }
+            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!,
+                view?.findViewById(R.id.text_view_profit_sum)!!,
+                view?.findViewById(R.id.text_view_sales_sum)!!) // Reload and refresh UI
+        }
+    }
+
+    private suspend fun fetchSalesChannels() {
+        val channelsFromDb = withContext(Dispatchers.IO) {
+            database.saleDao().getAllSalesChannels() // Fetch all sales channels from the database
+        }
+        salesChannels.clear()
+        salesChannels.addAll(channelsFromDb)
+    }
+
     // Retrieve data and save report locally
     private fun retrieveAndSaveLocally() {
         lifecycleScope.launch {
@@ -196,7 +234,7 @@ class SalesFragment : Fragment() {
             val expensesData = withContext(Dispatchers.IO) {
                 database.expenseDao().getAllExpenses()
             }
-            saveReportLocally(salesData, expensesData)
+            saveReportLocally(salesData, expensesData, salesChannels)
         }
     }
 
@@ -250,8 +288,8 @@ class SalesFragment : Fragment() {
             }
             Log.d("SalesFragment", "Expenses data retrieved successfully")
 
-            // Step 5: Convert sales data to CSV format
-            val csvData = salesDataToCSV(salesData)
+            // Step 5: Convert sales data to CSV format, including deleted and discount columns
+            val csvData = salesDataToCSV(salesData, salesChannels)
 
             // Step 6: Format the startDate and endDate as 'yyyy-MM-dd'
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -264,7 +302,7 @@ class SalesFragment : Fragment() {
             // Step 8: Save the CSV report to Google Drive
             googleDrive.saveReportToDrive(driveService, fileName, reportsFolderId, csvData.toByteArray())
 
-            // Step 9: Create and populate a spreadsheet from the CSV and expenses
+            // Step 9: Create and populate a spreadsheet from the CSV, including expenses, deleted, and discount
             val spreadsheetId = googleDrive.createSpreadsheet(
                 driveService, sheetsService, reportsFolderId, fileName, csvData, expensesData, salesData
             )
@@ -308,16 +346,30 @@ class SalesFragment : Fragment() {
     }
 
     // Convert sales data to CSV format with formatted timestamp
-    private fun salesDataToCSV(sales: List<SalesReport>): String {
-        val header = "Item Name, Quantity, Sale Price, Sales Channel, Total, Timestamp\n"
+    private fun salesDataToCSV(sales: List<SalesReport>, salesChannels: List<SalesChannel>): String {
+        val header = "Item Name, Quantity, Sale Price, Sales Channel, Discount, Deleted, Total, Timestamp\n"
         val data = sales.joinToString("\n") { sale ->
-            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},${sale.profit}" +
+            val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+            val discount = salesChannel?.discount ?: 0
+            val deleted = salesChannel?.deleted
+
+            // Calculate total and round it to the nearest whole number
+            val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+            val roundedTotal = kotlin.math.round(total)
+
+            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},$discount,$deleted,$roundedTotal," +
                     SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
         }
         return header + data
     }
 
-    private fun saveReportLocally(salesData: List<SalesReport>, expensesData: List<Expense>) {
+    // Helper function to calculate total with discount
+    private fun calculateTotal(salePrice: Double, quantity: Int, discount: Int): Double {
+        val discountMultiplier = (100 - discount) / 100.0
+        return salePrice * quantity * discountMultiplier
+    }
+
+    private fun saveReportLocally(salesData: List<SalesReport>, expensesData: List<Expense>, salesChannels: List<SalesChannel>) {
         lifecycleScope.launch {
             try {
                 Log.d("SalesFragment", "Starting to save report locally.")
@@ -353,18 +405,30 @@ class SalesFragment : Fragment() {
                 headerRow.createCell(1).setCellValue("Quantity")
                 headerRow.createCell(2).setCellValue("Sale Price")
                 headerRow.createCell(3).setCellValue("Sales Channel")
-                headerRow.createCell(4).setCellValue("Timestamp")
+                headerRow.createCell(4).setCellValue("Discount")  // Discount column
+                headerRow.createCell(5).setCellValue("Deleted")   // Deleted column
+                headerRow.createCell(6).setCellValue("Total")
+                headerRow.createCell(7).setCellValue("Timestamp")
 
                 // Write sales data
                 var rowIndex = 1
                 Log.d("SalesFragment", "Writing sales data to the Excel sheet.")
                 salesData.forEach { sale ->
+                    val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                    val discount = salesChannel?.discount ?: 0
+                    val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+
                     val row = sheet.createRow(rowIndex++)
                     row.createCell(0).setCellValue(sale.itemName)
                     row.createCell(1).setCellValue(sale.quantity.toString())
                     row.createCell(2).setCellValue(sale.salePrice.toString())
                     row.createCell(3).setCellValue(sale.salesChannel)
-                    row.createCell(4).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
+                    row.createCell(4).setCellValue(discount.toString()) // Discount value
+                    if (salesChannel != null) {
+                        row.createCell(5).setCellValue(salesChannel.deleted.toString())
+                    } // Deleted value
+                    row.createCell(6).setCellValue(total.toString())    // Total value with discount applied
+                    row.createCell(7).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
                 }
 
                 // Add two-column gap before starting expense data
@@ -387,7 +451,11 @@ class SalesFragment : Fragment() {
                 rowIndex += 2
 
                 // Calculate and write total sales, total expenses, and profit
-                val totalSales = salesData.sumOf { it.profit}
+                val totalSales = salesData.sumOf { sale ->
+                    val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                    val discount = salesChannel?.discount ?: 0
+                    calculateTotal(sale.salePrice, sale.quantity, discount)
+                }
                 val totalExpenses = expensesData.sumOf { it.amount }
                 val profit = totalSales - totalExpenses
 
@@ -458,7 +526,7 @@ class SalesFragment : Fragment() {
             val adjustedStartDate = getAdjustedDate(startDate, isStart = true)
             val adjustedEndDate = getAdjustedDate(endDate, isStart = false)
 
-            // Fetch sales for the selected date range
+            // Fetch sales for the selected date range, excluding canceled sales
             val salesFromDb = withContext(Dispatchers.IO) {
                 database.saleDao().getSalesBetween(adjustedStartDate, adjustedEndDate)
             }

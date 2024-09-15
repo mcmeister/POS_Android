@@ -6,5 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "sales_channel")
 data class SalesChannel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val name: String
+    val name: String,
+    val discount: Int = 0,
+    val deleted: Int = 0
 )
