@@ -1,6 +1,8 @@
 package com.example.pos
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +14,7 @@ import java.util.Date
 import java.util.Locale
 
 class SalesAdapter(
+    private val context: Context,
     private val sales: MutableList<Sale>,
     private val items: List<Item>,
     private val salesChannels: List<SalesChannel>,  // List of Sales Channels
@@ -77,11 +80,27 @@ class SalesAdapter(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         holder.textViewSaleTimestamp.text = "Date: ${dateFormat.format(Date(sale.timestamp))}"
 
-        // Handle Cancel button click
+        // Handle Cancel button click with confirmation dialog
         holder.buttonCancelSale.setOnClickListener {
-            onCancelSaleClick(sale)
+            showCancelConfirmationDialog(sale)
         }
     }
 
     override fun getItemCount(): Int = sales.size
+
+    // Function to show the confirmation dialog
+    private fun showCancelConfirmationDialog(sale: Sale) {
+        AlertDialog.Builder(context)
+            .setTitle("Cancel Order")
+            .setMessage("Are you sure you want to cancel this order?")
+            .setPositiveButton("Yes") { dialog, _ ->
+                onCancelSaleClick(sale) // Proceed with the cancellation
+                dialog.dismiss()
+            }
+            .setNegativeButton("No") { dialog, _ ->
+                dialog.dismiss() // Just dismiss the dialog
+            }
+            .create()
+            .show()
+    }
 }

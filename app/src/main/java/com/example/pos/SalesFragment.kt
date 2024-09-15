@@ -114,7 +114,7 @@ class SalesFragment : Fragment() {
             fetchSalesChannels()
 
             // Initialize the adapter after sales channels are loaded
-            adapter = SalesAdapter(sales, items, salesChannels) { sale ->
+            adapter = SalesAdapter(requireContext(), sales, items, salesChannels) { sale ->
                 cancelSale(sale)
             }
             recyclerView.layoutManager = LinearLayoutManager(context)

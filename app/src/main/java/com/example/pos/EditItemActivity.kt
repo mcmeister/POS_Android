@@ -5,7 +5,15 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.*
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -136,33 +144,65 @@ class EditItemActivity : AppCompatActivity() {
     private fun showNewSalesChannelDialog() {
         val builder = android.app.AlertDialog.Builder(this)
         builder.setTitle("Add New Sales Channel")
-        val input = EditText(this)
-        builder.setView(input)
+
+        // Create a LinearLayout to hold both input fields
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)  // Add padding for better appearance
+        }
+
+        // Create EditText for Sales Channel Name
+        val channelInput = EditText(this).apply {
+            hint = "Sales Channel Name"
+        }
+
+        // Create EditText for Discount
+        val discountInput = EditText(this).apply {
+            hint = "Discount (%)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+
+        // Add EditTexts to the layout
+        layout.addView(channelInput)
+        layout.addView(discountInput)
+
+        // Set the layout in the dialog
+        builder.setView(layout)
+
+        // Handle the positive button click
         builder.setPositiveButton("OK") { dialog, _ ->
-            val newChannel = input.text.toString().trim()
-            if (newChannel.isNotEmpty()) {
-                saveNewSalesChannel(newChannel)
+            val newChannel = channelInput.text.toString().trim()
+            val discount = discountInput.text.toString().trim()
+
+            if (newChannel.isNotEmpty() && discount.isNotEmpty()) {
+                saveNewSalesChannel(newChannel, discount.toInt())
             }
+
             dialog.dismiss()
         }
+
+        // Handle the negative button click
         builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+
+        // Show the dialog
         builder.show()
     }
 
-    private fun saveNewSalesChannel(channel: String) {
+    private fun saveNewSalesChannel(channel: String, discount: Int) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                database.saleDao().insertSalesChannel(SalesChannel(name = channel))
+                database.saleDao().insertSalesChannel(SalesChannel(name = channel,  discount = discount))
             }
             // Reload the sales channels and include the newly added channel
             loadSalesChannels()
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun showEditSalesChannelsDialog() {
-        val builder = android.app.AlertDialog.Builder(this)
+        val builder = android.app.AlertDialog.Builder(this@EditItemActivity)
         builder.setTitle("Sales Channels List")
-        builder.setCancelable(false) // Prevent the dialog from being dismissed automatically
+        // builder.setCancelable(false) // Prevent the dialog from being dismissed automatically
 
         // Inflate the custom layout for the popup window
         val view = layoutInflater.inflate(R.layout.dialog_edit_sales_channels, null)
@@ -182,17 +222,28 @@ class EditItemActivity : AppCompatActivity() {
                 editTextName.setText(channel.name)
                 editTextDiscount.setText(channel.discount.toString())
 
+                editTextName.setOnTouchListener { _, _ ->
+                    android.util.Log.d("EditItemActivity", "editTextName touched")
+                    false // Return false to allow the event to proceed
+                }
+
                 // Store the channel ID in the view tag
                 rowView.tag = channel.id
 
                 // Handle delete button click
                 deleteButton.setOnClickListener {
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.IO) {
-                            database.saleDao().markChannelAsDeleted(channel.id)
+                    val deleteConfirmDialog = android.app.AlertDialog.Builder(this@EditItemActivity)
+                    deleteConfirmDialog.setMessage("Are you sure you want to delete this channel?")
+                    deleteConfirmDialog.setPositiveButton("Yes") { _, _ ->
+                        lifecycleScope.launch {
+                            withContext(Dispatchers.IO) {
+                                database.saleDao().markChannelAsDeleted(channel.id)
+                            }
+                            salesChannelsList.removeView(rowView) // Remove row from UI
                         }
-                        salesChannelsList.removeView(rowView) // Remove row from UI
                     }
+                    deleteConfirmDialog.setNegativeButton("No", null)
+                    deleteConfirmDialog.show()
                 }
 
                 salesChannelsList.addView(rowView)
@@ -200,55 +251,69 @@ class EditItemActivity : AppCompatActivity() {
         }
 
         builder.setView(view)
-        builder.setPositiveButton("Save", null) // We'll set the click listener later
-        builder.setNegativeButton("Cancel", null) // We'll set the click listener later
+        builder.setPositiveButton("Save", null)
+        builder.setNegativeButton("Cancel", null)
 
         val dialog = builder.create()
+
         dialog.setOnShowListener {
             val positiveButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
             val negativeButton = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
 
             positiveButton.setOnClickListener {
-                // Save all changes to the database
                 lifecycleScope.launch {
+                    var hasErrors = false
+
                     salesChannelsList.children.forEach { rowView ->
                         val editTextName = rowView.findViewById<EditText>(R.id.edit_text_channel_name)
                         val editTextDiscount = rowView.findViewById<EditText>(R.id.edit_text_channel_discount)
                         val channelName = editTextName.text.toString().trim()
                         val discount = editTextDiscount.text.toString().toIntOrNull() ?: 0
 
-                        // Get the channelId from the tag
+                        // Validation
+                        if (channelName.isEmpty()) {
+                            editTextName.error = "Name cannot be empty"
+                            editTextName.requestFocus() // Request focus
+                            hasErrors = true
+                            return@forEach
+                        }
+
+                        if (discount !in 0..100) {
+                            editTextDiscount.error = "Invalid discount"
+                            if (!hasErrors) {
+                                editTextDiscount.requestFocus()
+                            }
+                            hasErrors = true
+                            return@forEach
+                        }
+
                         val channelId = rowView.tag as? Int ?: return@forEach
 
-                        // Update the database with the new values
                         withContext(Dispatchers.IO) {
                             database.saleDao().updateSalesChannel(channelName, discount, channelId)
                         }
                     }
-                    dialog.dismiss()
+
+                    if (!hasErrors) {
+                        dialog.dismiss()
+                    }
                 }
             }
 
             negativeButton.setOnClickListener {
-                // Show confirmation dialog
-                val confirmBuilder = android.app.AlertDialog.Builder(this)
+                val confirmBuilder = android.app.AlertDialog.Builder(this@EditItemActivity)
                 confirmBuilder.setMessage("Discard changes?")
                 confirmBuilder.setPositiveButton("Yes") { confirmDialog, _ ->
-                    // Dismiss both dialogs
                     confirmDialog.dismiss()
                     dialog.dismiss()
                 }
-                confirmBuilder.setNegativeButton("No") { confirmDialog, _ ->
-                    // Keep the edit dialog open
-                    confirmDialog.dismiss()
-                }
+                confirmBuilder.setNegativeButton("No", null)
                 confirmBuilder.show()
             }
         }
 
         dialog.setOnDismissListener {
-            // Refresh the sales channels when the dialog is dismissed
-            loadSalesChannels()
+            loadSalesChannels() // Refresh sales channels
         }
 
         dialog.show()
