@@ -19,7 +19,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
+import android.media.MediaScannerConnection
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -461,14 +461,20 @@ class SalesFragment : Fragment() {
     }
 
     private fun openFile(file: File) {
-        val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
-        val intent = Intent(Intent.ACTION_VIEW)
-        intent.setDataAndType(uri, "application/vnd.ms-excel")
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        try {
-            startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            showToast("No app found to open the report")
+        // Refresh the system to detect the latest version of the file
+        MediaScannerConnection.scanFile(requireContext(), arrayOf(file.absolutePath), null) { _, uri ->
+            if (uri != null) {
+                val intent = Intent(Intent.ACTION_VIEW)
+                intent.setDataAndType(uri, "application/vnd.ms-excel")
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                try {
+                    startActivity(intent)
+                } catch (e: ActivityNotFoundException) {
+                    showToast("No app found to open the report")
+                }
+            } else {
+                showToast("Failed to scan and open the report")
+            }
         }
     }
 
