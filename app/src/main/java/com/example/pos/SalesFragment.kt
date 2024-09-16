@@ -396,6 +396,7 @@ class SalesFragment : Fragment() {
 
                         val discount = salesChannel?.discount ?: 0
                         val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+                        val roundedTotal = kotlin.math.round(total).toInt()
 
                         // Create a new row and populate it with sales data
                         val row = sheet.createRow(rowIndex++)
@@ -404,7 +405,7 @@ class SalesFragment : Fragment() {
                         row.createCell(2).setCellValue(sale.salePrice.toString())  // Sale price
                         row.createCell(3).setCellValue(sale.salesChannel)  // Sales Channel name
                         row.createCell(4).setCellValue(discount.toString())  // Discount value
-                        row.createCell(5).setCellValue(total.toString())  // Total value with discount applied
+                        row.createCell(5).setCellValue(roundedTotal.toString())  // Total value with discount applied
                         row.createCell(6).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))  // Timestamp
                     }
 
