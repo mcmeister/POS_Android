@@ -36,6 +36,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.*
 
 class SalesFragment : Fragment() {
 
@@ -322,12 +323,18 @@ class SalesFragment : Fragment() {
         return sales
             .filter { sale -> sale.cancelled != 1 } // Exclude cancelled sales
             .joinToString("\n") { sale ->
-                val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                // Find the latest SalesChannel by name (if multiple exist with the same name, pick the one with the highest ID)
+                val salesChannel = salesChannels
+                    .filter { it.name == sale.salesChannel }  // Get all channels with the same name
+                    .maxByOrNull { it.id }  // Select the one with the latest (highest) id
+
+                // Use discount and deleted values from the latest SalesChannel entry
                 val discount = salesChannel?.discount ?: 0
-                val deleted = salesChannel?.deleted ?: 0
                 val total = calculateTotal(sale.salePrice, sale.quantity, discount)
                 val roundedTotal = kotlin.math.round(total)
-                "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},$discount,$deleted,$roundedTotal," +
+
+                // Return the CSV line
+                "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},$discount,$roundedTotal," +
                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
             }.let { header + it }
     }
@@ -373,32 +380,33 @@ class SalesFragment : Fragment() {
                 headerRow.createCell(2).setCellValue("Sale Price")
                 headerRow.createCell(3).setCellValue("Sales Channel")
                 headerRow.createCell(4).setCellValue("Discount")  // Discount column
-                headerRow.createCell(5).setCellValue("Deleted")   // Deleted column
-                headerRow.createCell(6).setCellValue("Total")
-                headerRow.createCell(7).setCellValue("Timestamp")
+                headerRow.createCell(5).setCellValue("Total")
+                headerRow.createCell(6).setCellValue("Timestamp")
 
                 // Write sales data
                 var rowIndex = 1
                 Log.d("SalesFragment", "Writing sales data to the Excel sheet.")
                 salesData
-                    .filter { sale -> sale.cancelled != 1 }
+                    .filter { sale -> sale.cancelled != 1 }  // Exclude cancelled sales
                     .forEach { sale ->
-                    val salesChannel = salesChannels.find { it.name == sale.salesChannel }
-                    val discount = salesChannel?.discount ?: 0
-                    val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+                        // Find the latest SalesChannel by name (get the one with the highest ID)
+                        val salesChannel = salesChannels
+                            .filter { it.name == sale.salesChannel }  // Get all channels with the same name
+                            .maxByOrNull { it.id }  // Select the one with the latest (highest) id
 
-                    val row = sheet.createRow(rowIndex++)
-                    row.createCell(0).setCellValue(sale.itemName)
-                    row.createCell(1).setCellValue(sale.quantity.toString())
-                    row.createCell(2).setCellValue(sale.salePrice.toString())
-                    row.createCell(3).setCellValue(sale.salesChannel)
-                    row.createCell(4).setCellValue(discount.toString()) // Discount value
-                    if (salesChannel != null) {
-                        row.createCell(5).setCellValue(salesChannel.deleted.toString())
-                    } // Deleted value
-                    row.createCell(6).setCellValue(total.toString())    // Total value with discount applied
-                    row.createCell(7).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))
-                }
+                        val discount = salesChannel?.discount ?: 0
+                        val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+
+                        // Create a new row and populate it with sales data
+                        val row = sheet.createRow(rowIndex++)
+                        row.createCell(0).setCellValue(sale.itemName)  // Item name
+                        row.createCell(1).setCellValue(sale.quantity.toString())  // Quantity
+                        row.createCell(2).setCellValue(sale.salePrice.toString())  // Sale price
+                        row.createCell(3).setCellValue(sale.salesChannel)  // Sales Channel name
+                        row.createCell(4).setCellValue(discount.toString())  // Discount value
+                        row.createCell(5).setCellValue(total.toString())  // Total value with discount applied
+                        row.createCell(6).setCellValue(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp))  // Timestamp
+                    }
 
                 // Add two-column gap before starting expense data
                 rowIndex += 2
@@ -461,19 +469,24 @@ class SalesFragment : Fragment() {
     }
 
     private fun openFile(file: File) {
-        // Refresh the system to detect the latest version of the file
-        MediaScannerConnection.scanFile(requireContext(), arrayOf(file.absolutePath), null) { _, uri ->
-            if (uri != null) {
-                val intent = Intent(Intent.ACTION_VIEW)
-                intent.setDataAndType(uri, "application/vnd.ms-excel")
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                try {
-                    startActivity(intent)
-                } catch (e: ActivityNotFoundException) {
-                    showToast("No app found to open the report")
+        // Add a delay of 1 second (adjust the delay time if needed)
+        lifecycleScope.launch {
+            delay(1000)  // Delay in milliseconds (1000 ms = 1 second)
+
+            // Refresh the system to detect the latest version of the file
+            MediaScannerConnection.scanFile(requireContext(), arrayOf(file.absolutePath), null) { _, uri ->
+                if (uri != null) {
+                    val intent = Intent(Intent.ACTION_VIEW)
+                    intent.setDataAndType(uri, "application/vnd.ms-excel")
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        startActivity(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        showToast("No app found to open the report")
+                    }
+                } else {
+                    showToast("Failed to scan and open the report")
                 }
-            } else {
-                showToast("Failed to scan and open the report")
             }
         }
     }
