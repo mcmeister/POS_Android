@@ -57,19 +57,34 @@ abstract class AppDatabase : RoomDatabase() {
         // New migration logic from version 7 to 8
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add 'cancelled' column to 'sale' table
+                // Add 'cancelled' column to 'sale' table, set default value to 0
                 db.execSQL("""
-                    ALTER TABLE `sale` ADD COLUMN `cancelled` INTEGER NOT NULL DEFAULT 0
-                """.trimIndent())
+            ALTER TABLE `sale` ADD COLUMN `cancelled` INTEGER NOT NULL DEFAULT 0
+        """.trimIndent())
 
-                // Add 'discount' and 'deleted' columns to 'sales_channel' table
+                // Add 'discount' and 'deleted' columns to 'sales_channel' table, set default values to 0
                 db.execSQL("""
-                    ALTER TABLE `sales_channel` ADD COLUMN `discount` INTEGER NOT NULL DEFAULT 0
-                """.trimIndent())
+            ALTER TABLE `sales_channel` ADD COLUMN `discount` INTEGER NOT NULL DEFAULT 0
+        """.trimIndent())
 
                 db.execSQL("""
-                    ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
-                """.trimIndent())
+            ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
+        """.trimIndent())
+
+                // Explicitly set 'deleted' to 0 for all existing rows in the sales_channel table
+                db.execSQL("""
+            UPDATE `sales_channel` SET `deleted` = 0
+        """.trimIndent())
+
+                // Explicitly set 'cancelled' to 0 for all existing rows in the sale table
+                db.execSQL("""
+            UPDATE `sale` SET `cancelled` = 0
+        """.trimIndent())
+
+                // Explicitly set 'discount' to 0 for all existing rows in the sales_channel table
+                db.execSQL("""
+            UPDATE `sales_channel` SET `discount` = 0
+        """.trimIndent())
             }
         }
 

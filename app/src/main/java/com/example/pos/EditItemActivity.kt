@@ -9,7 +9,6 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Spinner
@@ -17,7 +16,6 @@ import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
@@ -122,6 +120,8 @@ class EditItemActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             salesChannelDropdown.adapter = adapter
 
+            val salesChannelManager = SalesChannelManager(this@EditItemActivity, lifecycleScope, database, layoutInflater)
+
             // Handle user selecting "Add new" or "Edit..." option
             salesChannelDropdown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
@@ -132,7 +132,9 @@ class EditItemActivity : AppCompatActivity() {
                 ) {
                     when (existingSalesChannels[position]) {
                         "Add new..." -> showNewSalesChannelDialog()
-                        "Edit..." -> showEditSalesChannelsDialog() // Show edit popup
+                        "Edit..." -> salesChannelManager.showEditSalesChannelsDialog {
+                            loadSalesChannels() // Callback when the dialog is dismissed
+                        }
                     }
                 }
 
@@ -156,10 +158,11 @@ class EditItemActivity : AppCompatActivity() {
             hint = "Sales Channel Name"
         }
 
-        // Create EditText for Discount
+        // Create EditText for Discount with default value of 0
         val discountInput = EditText(this).apply {
             hint = "Discount (%)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText("0")  // Set default value to 0
         }
 
         // Add EditTexts to the layout
@@ -196,127 +199,6 @@ class EditItemActivity : AppCompatActivity() {
             // Reload the sales channels and include the newly added channel
             loadSalesChannels()
         }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun showEditSalesChannelsDialog() {
-        val builder = android.app.AlertDialog.Builder(this@EditItemActivity)
-        builder.setTitle("Sales Channels List")
-        // builder.setCancelable(false) // Prevent the dialog from being dismissed automatically
-
-        // Inflate the custom layout for the popup window
-        val view = layoutInflater.inflate(R.layout.dialog_edit_sales_channels, null)
-        val salesChannelsList = view.findViewById<LinearLayout>(R.id.sales_channels_list)
-
-        lifecycleScope.launch {
-            val salesChannels = withContext(Dispatchers.IO) {
-                database.saleDao().getAllSalesChannelsWithDiscounts()
-            }
-
-            salesChannels.forEach { channel ->
-                val rowView = layoutInflater.inflate(R.layout.row_sales_channel, salesChannelsList, false)
-                val editTextName = rowView.findViewById<EditText>(R.id.edit_text_channel_name)
-                val editTextDiscount = rowView.findViewById<EditText>(R.id.edit_text_channel_discount)
-                val deleteButton = rowView.findViewById<ImageButton>(R.id.button_delete_channel)
-
-                editTextName.setText(channel.name)
-                editTextDiscount.setText(channel.discount.toString())
-
-                editTextName.setOnTouchListener { _, _ ->
-                    android.util.Log.d("EditItemActivity", "editTextName touched")
-                    false // Return false to allow the event to proceed
-                }
-
-                // Store the channel ID in the view tag
-                rowView.tag = channel.id
-
-                // Handle delete button click
-                deleteButton.setOnClickListener {
-                    val deleteConfirmDialog = android.app.AlertDialog.Builder(this@EditItemActivity)
-                    deleteConfirmDialog.setMessage("Are you sure you want to delete this channel?")
-                    deleteConfirmDialog.setPositiveButton("Yes") { _, _ ->
-                        lifecycleScope.launch {
-                            withContext(Dispatchers.IO) {
-                                database.saleDao().markChannelAsDeleted(channel.id)
-                            }
-                            salesChannelsList.removeView(rowView) // Remove row from UI
-                        }
-                    }
-                    deleteConfirmDialog.setNegativeButton("No", null)
-                    deleteConfirmDialog.show()
-                }
-
-                salesChannelsList.addView(rowView)
-            }
-        }
-
-        builder.setView(view)
-        builder.setPositiveButton("Save", null)
-        builder.setNegativeButton("Cancel", null)
-
-        val dialog = builder.create()
-
-        dialog.setOnShowListener {
-            val positiveButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
-            val negativeButton = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
-
-            positiveButton.setOnClickListener {
-                lifecycleScope.launch {
-                    var hasErrors = false
-
-                    salesChannelsList.children.forEach { rowView ->
-                        val editTextName = rowView.findViewById<EditText>(R.id.edit_text_channel_name)
-                        val editTextDiscount = rowView.findViewById<EditText>(R.id.edit_text_channel_discount)
-                        val channelName = editTextName.text.toString().trim()
-                        val discount = editTextDiscount.text.toString().toIntOrNull() ?: 0
-
-                        // Validation
-                        if (channelName.isEmpty()) {
-                            editTextName.error = "Name cannot be empty"
-                            editTextName.requestFocus() // Request focus
-                            hasErrors = true
-                            return@forEach
-                        }
-
-                        if (discount !in 0..100) {
-                            editTextDiscount.error = "Invalid discount"
-                            if (!hasErrors) {
-                                editTextDiscount.requestFocus()
-                            }
-                            hasErrors = true
-                            return@forEach
-                        }
-
-                        val channelId = rowView.tag as? Int ?: return@forEach
-
-                        withContext(Dispatchers.IO) {
-                            database.saleDao().updateSalesChannel(channelName, discount, channelId)
-                        }
-                    }
-
-                    if (!hasErrors) {
-                        dialog.dismiss()
-                    }
-                }
-            }
-
-            negativeButton.setOnClickListener {
-                val confirmBuilder = android.app.AlertDialog.Builder(this@EditItemActivity)
-                confirmBuilder.setMessage("Discard changes?")
-                confirmBuilder.setPositiveButton("Yes") { confirmDialog, _ ->
-                    confirmDialog.dismiss()
-                    dialog.dismiss()
-                }
-                confirmBuilder.setNegativeButton("No", null)
-                confirmBuilder.show()
-            }
-        }
-
-        dialog.setOnDismissListener {
-            loadSalesChannels() // Refresh sales channels
-        }
-
-        dialog.show()
     }
 
     private fun showPhotoOptionsDialog() {
