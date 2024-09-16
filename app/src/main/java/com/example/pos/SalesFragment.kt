@@ -432,7 +432,9 @@ class SalesFragment : Fragment() {
                 val totalSales = salesData
                     .filter { sale -> sale.cancelled != 1 } // Exclude sales where cancelled is 1
                     .sumOf { sale ->
-                        val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                        val salesChannel = salesChannels
+                            .filter { it.name == sale.salesChannel }
+                            .maxByOrNull { it.id }
                         val discount = salesChannel?.discount ?: 0
                         calculateTotal(sale.salePrice, sale.quantity, discount)
                     }
@@ -523,7 +525,9 @@ class SalesFragment : Fragment() {
             }
 
             val totalSales = salesFromDb.sumOf { sale ->
-                val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                val salesChannel = salesChannels
+                    .filter { it.name == sale.salesChannel }
+                    .maxByOrNull { it.id }
                 val discount = salesChannel?.discount ?: 0
                 calculateTotal(sale.salePrice.toDouble(), sale.quantity, discount)
             }
