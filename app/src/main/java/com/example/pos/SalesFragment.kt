@@ -498,15 +498,22 @@ class SalesFragment : Fragment() {
         lifecycleScope.launch {
             val adjustedStartDate = getAdjustedDate(startDate, true)
             val adjustedEndDate = getAdjustedDate(endDate, false)
+
             val salesFromDb = withContext(Dispatchers.IO) {
                 database.saleDao().getSalesBetween(adjustedStartDate, adjustedEndDate)
+                    .filter { sale -> sale.cancelled != 1 } // Exclude cancelled sales here
             }
+
             val totalExpenses = withContext(Dispatchers.IO) {
                 database.expenseDao().getTotalExpenseBetween(adjustedStartDate, adjustedEndDate)
             }
-            val totalSales = withContext(Dispatchers.IO) {
-                database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
+
+            val totalSales = salesFromDb.sumOf { sale ->
+                val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                val discount = salesChannel?.discount ?: 0
+                calculateTotal(sale.salePrice.toDouble(), sale.quantity, discount)
             }
+
             val totalProfit = totalSales - totalExpenses
 
             sales.clear()
