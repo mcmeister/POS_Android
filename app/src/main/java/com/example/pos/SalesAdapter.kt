@@ -45,22 +45,17 @@ class SalesAdapter(
         holder.textViewSaleId.text = "Order ID: ${sale.id}"
         holder.textViewItemName.text = "Item: ${item?.name ?: "Unknown Item"}"
 
-        // Find the corresponding SalesChannel by sale.id (assuming salesChannel.id somehow matches sale.id)
-        val salesChannel = salesChannels.find { it.name == sale.salesChannel && it.deleted == 0 }  // Adjust logic if needed based on your app's structure
+        // Find the corresponding SalesChannel by sale.salesChannel
+        val salesChannel = salesChannels
+            .filter { it.name == sale.salesChannel }  // Get all channels with the same name
+            .maxByOrNull { it.id }  // Select the one with the latest (highest) id
 
         // Determine how to display the sales channel (Deleted or Discount)
-        if (salesChannel != null) {
-            if (salesChannel.deleted == 0) {
-                holder.textViewSalesChannel.text = if (salesChannel.discount > 0) {
-                    "Sales Channel: ${salesChannel.name} (Discount: ${salesChannel.discount}%)"
-                } else {
-                    "Sales Channel: ${salesChannel.name} (Deleted)"
-                }
-            } else {
-                holder.textViewSalesChannel.text = "Sales Channel: ${salesChannel.name}"
-            }
-        } else {
-            holder.textViewSalesChannel.text = "Sales Channel: Unknown"
+        holder.textViewSalesChannel.text = when {
+            salesChannel == null -> "Sales Channel: Unknown"
+            salesChannel.deleted == 1 -> "Sales Channel: ${salesChannel.name} (Deleted)"
+            salesChannel.discount > 0 -> "Sales Channel: ${salesChannel.name} (Discount: ${salesChannel.discount}%)"
+            else -> "Sales Channel: ${salesChannel.name}"
         }
 
         holder.textViewQuantity.text = "Quantity: ${sale.quantity}"
