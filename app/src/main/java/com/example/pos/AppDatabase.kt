@@ -70,21 +70,6 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("""
             ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
         """.trimIndent())
-
-                // Explicitly set 'deleted' to 0 for all existing rows in the sales_channel table
-                db.execSQL("""
-            UPDATE `sales_channel` SET `deleted` = 0
-        """.trimIndent())
-
-                // Explicitly set 'cancelled' to 0 for all existing rows in the sale table
-                db.execSQL("""
-            UPDATE `sale` SET `cancelled` = 0
-        """.trimIndent())
-
-                // Explicitly set 'discount' to 0 for all existing rows in the sales_channel table
-                db.execSQL("""
-            UPDATE `sales_channel` SET `discount` = 0
-        """.trimIndent())
             }
         }
 

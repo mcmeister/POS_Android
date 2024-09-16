@@ -46,7 +46,7 @@ class SalesAdapter(
         holder.textViewItemName.text = "Item: ${item?.name ?: "Unknown Item"}"
 
         // Find the corresponding SalesChannel by sale.id (assuming salesChannel.id somehow matches sale.id)
-        val salesChannel = salesChannels.find { it.name == sale.salesChannel }  // Adjust logic if needed based on your app's structure
+        val salesChannel = salesChannels.find { it.name == sale.salesChannel && it.deleted == 0 }  // Adjust logic if needed based on your app's structure
 
         // Determine how to display the sales channel (Deleted or Discount)
         if (salesChannel != null) {
