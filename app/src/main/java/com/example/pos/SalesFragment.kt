@@ -30,11 +30,11 @@ import com.google.api.services.drive.Drive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import java.io.File
 import java.io.FileOutputStream
-import org.apache.poi.hssf.usermodel.HSSFWorkbook
-import java.util.Calendar
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 class SalesFragment : Fragment() {
@@ -63,11 +63,9 @@ class SalesFragment : Fragment() {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             lifecycleScope.launch {
                 googleDrive.handleSignInResult(task, {
-                    // Sign-in success, proceed with export
                     Log.d("SalesFragment", "Sign-in successful, proceeding with export")
                     exportSalesToGoogleDrive()
                 }, {
-                    // Sign-in failed, show error and save report locally
                     Log.e("SalesFragment", "Sign-in failed in handleSignInResult, saving report locally")
                     showToast("Failed to sign in to Google Drive. Saving report locally.")
                     retrieveAndSaveLocally()
@@ -91,6 +89,8 @@ class SalesFragment : Fragment() {
 
         // Initialize views
         recyclerView = view.findViewById(R.id.recycler_view_sales)
+
+        // Buttons and text fields
         val buttonStartDate: Button = view.findViewById(R.id.button_start_date)
         val buttonEndDate: Button = view.findViewById(R.id.button_end_date)
         val buttonSubmitExpense: Button = view.findViewById(R.id.button_submit_expense)
@@ -110,29 +110,21 @@ class SalesFragment : Fragment() {
 
         // Fetch sales channels before setting up the adapter
         lifecycleScope.launch {
-            // Fetch sales channels (ensure this completes before setting the adapter)
             fetchSalesChannels()
-
-            // Initialize the adapter after sales channels are loaded
             adapter = SalesAdapter(requireContext(), sales, items, salesChannels) { sale ->
                 cancelSale(sale)
             }
             recyclerView.layoutManager = LinearLayoutManager(context)
             recyclerView.adapter = adapter
 
-            // Fetch items after setting up the adapter
             fetchItems()
-
-            // Filter sales after items and sales channels are ready
             filterSales(textViewExpenseSum, textViewProfitSum, textViewSalesSum)
         }
 
-        // Listen to changes in the expense input field and enable/disable the button
         editTextExpense.addTextChangedListener {
             buttonSubmitExpense.isEnabled = it.toString().isNotEmpty()
         }
 
-        // Handle submit button click
         buttonSubmitExpense.setOnClickListener {
             val expenseAmount = editTextExpense.text.toString().toDoubleOrNull()
             if (expenseAmount != null) {
@@ -144,7 +136,6 @@ class SalesFragment : Fragment() {
             }
         }
 
-        // Date picker buttons for Start Date
         buttonStartDate.setOnClickListener {
             showDatePicker { date ->
                 startDate = date
@@ -152,7 +143,6 @@ class SalesFragment : Fragment() {
             }
         }
 
-        // Date picker buttons for End Date
         buttonEndDate.setOnClickListener {
             showDatePicker { date ->
                 endDate = date
@@ -160,12 +150,10 @@ class SalesFragment : Fragment() {
             }
         }
 
-        // Export button handling
         buttonExport.setOnClickListener {
             Log.d("SalesFragment", "Export button clicked, checking sign-in status...")
             lifecycleScope.launch {
                 googleDrive.signInToGoogle(signInLauncher) {
-                    Log.d("SalesFragment", "Sign-in successful, proceeding with export")
                     exportSalesToGoogleDrive()
                 }
             }
@@ -187,7 +175,6 @@ class SalesFragment : Fragment() {
         }
     }
 
-    // Function to save the expense in the database with the current timestamp
     private fun saveExpense(amount: Double) {
         lifecycleScope.launch {
             val timestamp = System.currentTimeMillis()
@@ -198,34 +185,31 @@ class SalesFragment : Fragment() {
             }
 
             showToast("Expense saved: $amount")
-
-            // Refresh UI after expense is saved
-            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!, view?.findViewById(R.id.text_view_profit_sum)!!,
+            filterSales(view?.findViewById(R.id.text_view_expense_sum)!!,
+                view?.findViewById(R.id.text_view_profit_sum)!!,
                 view?.findViewById(R.id.text_view_sales_sum)!!)
         }
     }
 
-    // Cancel the sale and refresh the UI
     private fun cancelSale(sale: Sale) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                database.saleDao().markSaleAsCancelled(sale.id)  // Mark sale as canceled in the database
+                database.saleDao().markSaleAsCancelled(sale.id)
             }
             filterSales(view?.findViewById(R.id.text_view_expense_sum)!!,
                 view?.findViewById(R.id.text_view_profit_sum)!!,
-                view?.findViewById(R.id.text_view_sales_sum)!!) // Reload and refresh UI
+                view?.findViewById(R.id.text_view_sales_sum)!!)
         }
     }
 
     private suspend fun fetchSalesChannels() {
         val channelsFromDb = withContext(Dispatchers.IO) {
-            database.saleDao().getAllSalesChannels() // Fetch all sales channels from the database
+            database.saleDao().getAllSalesChannels()
         }
         salesChannels.clear()
         salesChannels.addAll(channelsFromDb)
     }
 
-    // Retrieve data and save report locally
     private fun retrieveAndSaveLocally() {
         lifecycleScope.launch {
             val salesData = withContext(Dispatchers.IO) {
@@ -322,51 +306,34 @@ class SalesFragment : Fragment() {
         }
     }
 
-    // Function to delete the CSV file after it's used to populate the spreadsheet
     private suspend fun deleteCsvFile(driveService: Drive, folderId: String, fileName: String) {
-        return withContext(Dispatchers.IO) {
-            try {
-                val query = "mimeType='text/csv' and name='$fileName' and '$folderId' in parents"
-                val fileList = driveService.files().list()
-                    .setQ(query)
-                    .setSpaces("drive")
-                    .execute()
-
-                if (fileList.files.isNotEmpty()) {
-                    val fileId = fileList.files[0].id
-                    driveService.files().delete(fileId).execute()
-                    Log.d("SalesFragment", "CSV file $fileName deleted successfully from Google Drive")
-                } else {
-                    Log.e("SalesFragment", "CSV file $fileName not found in folder $folderId")
-                }
-            } catch (e: Exception) {
-                Log.e("SalesFragment", "Error deleting CSV file: $fileName", e)
+        withContext(Dispatchers.IO) {
+            val query = "mimeType='text/csv' and name='$fileName' and '$folderId' in parents"
+            val fileList = driveService.files().list().setQ(query).setSpaces("drive").execute()
+            if (fileList.files.isNotEmpty()) {
+                val fileId = fileList.files[0].id
+                driveService.files().delete(fileId).execute()
             }
         }
     }
 
-    // Convert sales data to CSV format with formatted timestamp
     private fun salesDataToCSV(sales: List<SalesReport>, salesChannels: List<SalesChannel>): String {
         val header = "Item Name, Quantity, Sale Price, Sales Channel, Discount, Deleted, Total, Timestamp\n"
-        val data = sales.joinToString("\n") { sale ->
-            val salesChannel = salesChannels.find { it.name == sale.salesChannel }
-            val discount = salesChannel?.discount ?: 0
-            val deleted = salesChannel?.deleted
-
-            // Calculate total and round it to the nearest whole number
-            val total = calculateTotal(sale.salePrice, sale.quantity, discount)
-            val roundedTotal = kotlin.math.round(total)
-
-            "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},$discount,$deleted,$roundedTotal," +
-                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
-        }
-        return header + data
+        return sales
+            .filter { sale -> sale.cancelled != 1 } // Exclude cancelled sales
+            .joinToString("\n") { sale ->
+                val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                val discount = salesChannel?.discount ?: 0
+                val deleted = salesChannel?.deleted ?: 0
+                val total = calculateTotal(sale.salePrice, sale.quantity, discount)
+                val roundedTotal = kotlin.math.round(total)
+                "${sale.itemName},${sale.quantity},${sale.salePrice},${sale.salesChannel},$discount,$deleted,$roundedTotal," +
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(sale.timestamp)
+            }.let { header + it }
     }
 
-    // Helper function to calculate total with discount
     private fun calculateTotal(salePrice: Double, quantity: Int, discount: Int): Double {
-        val discountMultiplier = (100 - discount) / 100.0
-        return salePrice * quantity * discountMultiplier
+        return salePrice * quantity * (1 - discount / 100.0)
     }
 
     private fun saveReportLocally(salesData: List<SalesReport>, expensesData: List<Expense>, salesChannels: List<SalesChannel>) {
@@ -413,7 +380,9 @@ class SalesFragment : Fragment() {
                 // Write sales data
                 var rowIndex = 1
                 Log.d("SalesFragment", "Writing sales data to the Excel sheet.")
-                salesData.forEach { sale ->
+                salesData
+                    .filter { sale -> sale.cancelled != 1 }
+                    .forEach { sale ->
                     val salesChannel = salesChannels.find { it.name == sale.salesChannel }
                     val discount = salesChannel?.discount ?: 0
                     val total = calculateTotal(sale.salePrice, sale.quantity, discount)
@@ -451,11 +420,13 @@ class SalesFragment : Fragment() {
                 rowIndex += 2
 
                 // Calculate and write total sales, total expenses, and profit
-                val totalSales = salesData.sumOf { sale ->
-                    val salesChannel = salesChannels.find { it.name == sale.salesChannel }
-                    val discount = salesChannel?.discount ?: 0
-                    calculateTotal(sale.salePrice, sale.quantity, discount)
-                }
+                val totalSales = salesData
+                    .filter { sale -> sale.cancelled != 1 } // Exclude sales where cancelled is 1
+                    .sumOf { sale ->
+                        val salesChannel = salesChannels.find { it.name == sale.salesChannel }
+                        val discount = salesChannel?.discount ?: 0
+                        calculateTotal(sale.salePrice, sale.quantity, discount)
+                    }
                 val totalExpenses = expensesData.sumOf { it.amount }
                 val profit = totalSales - totalExpenses
 
@@ -491,11 +462,9 @@ class SalesFragment : Fragment() {
 
     private fun openFile(file: File) {
         val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
-
         val intent = Intent(Intent.ACTION_VIEW)
         intent.setDataAndType(uri, "application/vnd.ms-excel")
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
@@ -503,7 +472,6 @@ class SalesFragment : Fragment() {
         }
     }
 
-    // Show the date picker dialog to select a date
     private fun showDatePicker(onDateSelected: (Long) -> Unit) {
         val datePicker = DatePickerDialog(
             requireContext(),
@@ -519,37 +487,26 @@ class SalesFragment : Fragment() {
         datePicker.show()
     }
 
-    // Fetch sales from the database based on the date range and update the RecyclerView
     @SuppressLint("NotifyDataSetChanged")
     private fun filterSales(expenseTextView: TextView, salesTextView: TextView, profitTextView: TextView) {
         lifecycleScope.launch {
-            val adjustedStartDate = getAdjustedDate(startDate, isStart = true)
-            val adjustedEndDate = getAdjustedDate(endDate, isStart = false)
-
-            // Fetch sales for the selected date range, excluding canceled sales
+            val adjustedStartDate = getAdjustedDate(startDate, true)
+            val adjustedEndDate = getAdjustedDate(endDate, false)
             val salesFromDb = withContext(Dispatchers.IO) {
                 database.saleDao().getSalesBetween(adjustedStartDate, adjustedEndDate)
             }
-
-            // Fetch total expenses for the selected date range
             val totalExpenses = withContext(Dispatchers.IO) {
                 database.expenseDao().getTotalExpenseBetween(adjustedStartDate, adjustedEndDate)
             }
-
-            // Fetch total sales for the selected date range
             val totalSales = withContext(Dispatchers.IO) {
                 database.saleDao().getTotalProfitBetween(adjustedStartDate, adjustedEndDate)
             }
-
-            // Calculate total profit
             val totalProfit = totalSales - totalExpenses
 
-            // Update the RecyclerView
             sales.clear()
             sales.addAll(salesFromDb)
             adapter.notifyDataSetChanged()
 
-            // Update TextViews with formatted values
             expenseTextView.text = getString(R.string.total_expense, totalExpenses)
             salesTextView.text = getString(R.string.total_sales, totalSales)
             profitTextView.text = getString(R.string.profit, totalProfit)
@@ -573,7 +530,6 @@ class SalesFragment : Fragment() {
         return calendar.timeInMillis
     }
 
-    // Fetch items from the database and update the RecyclerView
     @SuppressLint("NotifyDataSetChanged")
     private fun fetchItems() {
         lifecycleScope.launch {
@@ -586,7 +542,6 @@ class SalesFragment : Fragment() {
         }
     }
 
-    // Show toast messages
     private fun showToast(message: String) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }

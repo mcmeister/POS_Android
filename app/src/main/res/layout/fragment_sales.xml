@@ -1,158 +1,142 @@
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- fragment_sales.xml -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:padding="16dp"
+    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <!-- Scrollable content wrapped inside a ScrollView -->
-    <ScrollView
-        android:id="@+id/scroll_view_content"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginBottom="16dp"
-        android:fillViewport="true"
-        android:orientation="vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/button_export"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+    <!-- Start Date Picker -->
+    <LinearLayout
+        android:id="@+id/start_date"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:text="@string/start_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/button_start_date"
+            style="?android:attr/buttonBarButtonStyle"
+            android:text="@string/select_date"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginStart="8dp"
+            android:padding="12dp" />
+    </LinearLayout>
 
-            <!-- Start Date Picker -->
-            <LinearLayout
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingBottom="8dp"
-                android:gravity="center_vertical">
+    <!-- End Date Picker -->
+    <LinearLayout
+        android:id="@+id/end_date"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
 
-                <TextView
-                    android:text="@string/start_date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+        <TextView
+            android:text="@string/end_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
 
-                <Button
-                    android:id="@+id/button_start_date"
-                    style="?android:attr/buttonBarButtonStyle"
-                    android:text="@string/select_date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:padding="12dp" />
-            </LinearLayout>
+        <Button
+            android:id="@+id/button_end_date"
+            style="?android:attr/buttonBarButtonStyle"
+            android:text="@string/select_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:padding="12dp" />
+    </LinearLayout>
 
-            <!-- End Date Picker -->
-            <LinearLayout
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingBottom="8dp"
-                android:gravity="center_vertical">
+    <!-- Expense Input and Submit Button -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="16dp">
 
-                <TextView
-                    android:text="@string/end_date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/edit_text_expense"
+            android:autofillHints=""
+            android:hint="@string/expense_amount"
+            android:inputType="numberDecimal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:padding="12dp" />
 
-                <Button
-                    android:id="@+id/button_end_date"
-                    style="?android:attr/buttonBarButtonStyle"
-                    android:text="@string/select_date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:padding="12dp" />
-            </LinearLayout>
+        <Button
+            android:id="@+id/button_submit_expense"
+            style="?android:attr/buttonBarButtonStyle"
+            android:text="@string/submit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:layout_marginStart="8dp"
+            android:padding="12dp" />
+    </LinearLayout>
 
-            <!-- Expense Input and Submit Button -->
-            <LinearLayout
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingBottom="16dp">
+    <!-- Expense and Profit Summary -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="16dp"
+        android:gravity="center_vertical">
 
-                <EditText
-                    android:id="@+id/edit_text_expense"
-                    android:autofillHints=""
-                    android:hint="@string/expense_amount"
-                    android:inputType="numberDecimal"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:padding="12dp" />
+        <TextView
+            android:id="@+id/text_view_expense_sum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/total_expense"
+            android:textColor="@android:color/holo_red_light"
+            android:textSize="12sp"
+            android:gravity="start"
+            android:paddingStart="12dp"
+            tools:ignore="RtlSymmetry" />
 
-                <Button
-                    android:id="@+id/button_submit_expense"
-                    style="?android:attr/buttonBarButtonStyle"
-                    android:text="@string/submit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:enabled="false"
-                    android:layout_marginStart="8dp"
-                    android:padding="12dp" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/text_view_profit_sum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/profit"
+            android:textColor="@android:color/holo_blue_light"
+            android:textSize="12sp"
+            android:gravity="end"
+            android:paddingEnd="12dp"
+            tools:ignore="RtlSymmetry" />
 
-            <!-- Expense and Profit Summary -->
-            <LinearLayout
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingBottom="16dp"
-                android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/text_view_sales_sum"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/total_sales"
+            android:textColor="@android:color/holo_green_light"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:paddingEnd="12dp"
+            tools:ignore="RtlSymmetry" />
+    </LinearLayout>
 
-                <TextView
-                    android:id="@+id/text_view_expense_sum"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/total_expense"
-                    android:textColor="@android:color/holo_red_light"
-                    android:textSize="12sp"
-                    android:gravity="start"
-                    android:paddingStart="12dp"
-                    tools:ignore="RtlSymmetry" />
+    <!-- Sales List (RecyclerView) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_sales"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:overScrollMode="always" />
 
-                <TextView
-                    android:id="@+id/text_view_profit_sum"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/profit"
-                    android:textColor="@android:color/holo_blue_light"
-                    android:textSize="12sp"
-                    android:gravity="end"
-                    android:paddingEnd="12dp"
-                    tools:ignore="RtlSymmetry" />
-
-                <TextView
-                    android:id="@+id/text_view_sales_sum"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/total_sales"
-                    android:textColor="@android:color/holo_green_light"
-                    android:textSize="12sp"
-                    android:gravity="center"
-                    android:paddingEnd="12dp"
-                    tools:ignore="RtlSymmetry" />
-            </LinearLayout>
-
-            <!-- Sales List (RecyclerView) -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_view_sales"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:overScrollMode="always" />
-
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- Export Button (fixed at the bottom) -->
+    <!-- Export Button -->
     <Button
         android:id="@+id/button_export"
         style="?android:attr/buttonBarButtonStyle"
@@ -163,9 +147,8 @@
         android:textColor="@android:color/white"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
+        android:layout_gravity="center"
         android:padding="12dp"
-        android:background="@drawable/button_border"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+        android:background="@drawable/button_border" />
+
+</LinearLayout>

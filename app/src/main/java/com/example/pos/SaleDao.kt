@@ -15,7 +15,7 @@ interface SaleDao {
     @Query("UPDATE sale SET cancelled = 1 WHERE id = :saleId")
     fun markSaleAsCancelled(saleId: Int)
 
-    @Query("SELECT * FROM sale WHERE cancelled = 0 AND timestamp >= :startDate AND timestamp <= :endDate")
+    @Query("SELECT * FROM sale WHERE cancelled != 1 AND timestamp >= :startDate AND timestamp <= :endDate")
     fun getSalesBetween(startDate: Long, endDate: Long): List<Sale>
 
     // New query to get all sales channels
@@ -38,6 +38,7 @@ interface SaleDao {
         FROM sale s
         JOIN sales_channel sc ON s.salesChannel = sc.name
         WHERE s.timestamp >= :startDate AND s.timestamp <= :endDate
+        AND s.cancelled != 1
     """)
     suspend fun getTotalProfitBetween(startDate: Long, endDate: Long): Double
 
