@@ -7,7 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Item::class, Sale::class, SalesChannel::class, Expense::class], version = 8, exportSchema = false) // Updated to version 8
+@Database(
+    entities = [Item::class, Sale::class, SalesChannel::class, Expense::class],
+    version = 9,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
     abstract fun saleDao(): SaleDao
@@ -54,22 +58,37 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // New migration logic from version 7 to 8
+        // Migration logic from version 7 to 8
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Add 'cancelled' column to 'sale' table, set default value to 0
                 db.execSQL("""
-            ALTER TABLE `sale` ADD COLUMN `cancelled` INTEGER NOT NULL DEFAULT 0
-        """.trimIndent())
+                    ALTER TABLE `sale` ADD COLUMN `cancelled` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
 
                 // Add 'discount' and 'deleted' columns to 'sales_channel' table, set default values to 0
                 db.execSQL("""
-            ALTER TABLE `sales_channel` ADD COLUMN `discount` INTEGER NOT NULL DEFAULT 0
-        """.trimIndent())
+                    ALTER TABLE `sales_channel` ADD COLUMN `discount` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
 
                 db.execSQL("""
-            ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
-        """.trimIndent())
+                    ALTER TABLE `sales_channel` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
+            }
+        }
+
+        // Migration logic from version 8 to 9
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add 'isSelected' column to 'item' table, set default value to 0 (false)
+                db.execSQL("""
+                    ALTER TABLE `item` ADD COLUMN `isSelected` INTEGER NOT NULL DEFAULT 0
+                """.trimIndent())
+
+                // Add 'quantity' column to 'item' table, set default value to 1
+                db.execSQL("""
+                    ALTER TABLE `item` ADD COLUMN `quantity` INTEGER NOT NULL DEFAULT 1
+                """.trimIndent())
             }
         }
 
@@ -79,7 +98,12 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java, "pos_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(
+                        MIGRATION_5_6,
+                        MIGRATION_6_7,
+                        MIGRATION_7_8,
+                        MIGRATION_8_9
+                    )
                     .build().also { instance = it }
             }
     }

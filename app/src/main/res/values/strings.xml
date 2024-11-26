@@ -40,4 +40,6 @@
     <string name="edit_sales_channel_name">Name</string>
     <string name="edit_sales_channel_discount">Discount</string>
     <string name="cancel_sale">Cancel Order</string>
+    <string name="increase_quantity">Increase quantity</string>
+    <string name="decrease_quantity">Decrease quantity</string>
 </resources>

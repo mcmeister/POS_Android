@@ -100,7 +100,7 @@ class GoogleDrive(private val fragment: Fragment) {
         return withContext(Dispatchers.IO) {
             googleAccount?.let {
                 // Load the credentials
-                val clientSecrets = loadClientSecret()
+                loadClientSecret()
                 val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
 
                 val credential = GoogleAccountCredential.usingOAuth2(

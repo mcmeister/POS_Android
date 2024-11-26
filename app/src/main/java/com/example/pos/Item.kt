@@ -11,7 +11,9 @@ data class Item(
     val name: String,                                  // Item name
     val rawPrice: Int,                                 // Raw price (changed to Int)
     val salePrice: Int,                                // Sale price (changed to Int)
-    val photoUri: String?                              // Photo URI, nullable
+    val photoUri: String?,                             // Photo URI, nullable
+    var isSelected: Boolean = false,
+    var quantity: Int = 0
 ) : Parcelable {
 
     // Parcelable constructor
