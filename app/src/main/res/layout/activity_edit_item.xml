@@ -100,22 +100,8 @@
             android:autofillHints=""
             android:hint="@string/quantity_edit"
             android:inputType="text"
-            android:minHeight="48dp" />
-
-        <!-- Proceed Button (Main Button) -->
-        <Button
-            android:id="@+id/button_proceed"
-            style="?android:attr/buttonBarButtonStyle"
-            android:text="@string/proceed_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@android:color/holo_red_light"
-            android:textColor="@android:color/white"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:layout_gravity="center"
-            android:padding="12dp"
-            android:background="@drawable/button_border" />
+            android:minHeight="48dp"
+            android:visibility="gone"/>
 
     </LinearLayout>
 </ScrollView>

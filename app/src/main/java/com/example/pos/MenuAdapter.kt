@@ -45,13 +45,20 @@ class MenuAdapter(
         return ItemViewHolder(view)
     }
 
+    fun getSelectedItems(): List<Item> {
+        return currentList.filter { it.isSelected }
+    }
+
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
         val item = getItem(position)
 
+        // Remove previous listeners to prevent multiple triggers
+        holder.checkboxSelectItem.setOnCheckedChangeListener(null)
+        holder.buttonDecreaseQuantity.setOnClickListener(null)
+        holder.buttonIncreaseQuantity.setOnClickListener(null)
+
         // Set item name
         holder.textItemName.text = item.name
-
-        holder.textQuantity.text = item.quantity.toString()
 
         // Load the image if photoUri is available, otherwise set a placeholder
         if (!item.photoUri.isNullOrEmpty()) {
@@ -77,21 +84,21 @@ class MenuAdapter(
 
         // Decrease quantity button click listener
         holder.buttonDecreaseQuantity.setOnClickListener {
-            val currentQuantity = holder.textQuantity.text.toString().toInt()
-            if (currentQuantity > 0) {
-                val newQuantity = currentQuantity - 1
-                holder.textQuantity.text = newQuantity.toString()
+            if (item.quantity > 0) {
+                val newQuantity = item.quantity - 1
+                val updatedItem = item.copy(quantity = newQuantity)
+                onItemChanged(updatedItem)
             }
         }
 
         // Increase quantity button click listener
         holder.buttonIncreaseQuantity.setOnClickListener {
-            val currentQuantity = holder.textQuantity.text.toString().toInt()
-            val newQuantity = currentQuantity + 1
-            holder.textQuantity.text = newQuantity.toString()
+            val newQuantity = item.quantity + 1
+            val updatedItem = item.copy(quantity = newQuantity)
+            onItemChanged(updatedItem)
         }
 
-        // Item click listener
+        // Item click listener (optional, if you have an item click action)
         holder.itemView.setOnClickListener {
             onItemClick(item)
         }

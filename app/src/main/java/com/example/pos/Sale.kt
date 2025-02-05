@@ -5,12 +5,13 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "sale")
 data class Sale(
-    @PrimaryKey val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0, // ✅ Auto-generated unique ID
+    val orderId: Int, // ✅ Sequential order number
     val itemId: Int,
     val itemName: String,
     val quantity: Int,
-    val rawPrice: Int,
-    val salePrice: Int,
+    val salePrice: Double,
+    val rawPrice: Double,
     val profit: Int,
     val salesChannel: String,
     val timestamp: Long,

@@ -7,6 +7,6 @@ import androidx.room.PrimaryKey
 data class SalesChannel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val discount: Int = 0,
+    val discount: Int,
     val deleted: Int = 0
 )

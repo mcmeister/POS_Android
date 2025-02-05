@@ -98,6 +98,10 @@ dependencies {
     // Gson for JSON parsing
     implementation("com.google.code.gson:gson:2.9.0")
 
+    //Log4j
+    implementation("org.apache.logging.log4j:log4j-api:2.17.1")
+    annotationProcessor("org.apache.logging.log4j:log4j-core:2.17.1")
+
     // AndroidX and other libraries
     implementation("androidx.recyclerview:recyclerview:1.2.1")
     implementation("androidx.room:room-runtime:2.6.1")

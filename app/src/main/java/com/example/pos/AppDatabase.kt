@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Item::class, Sale::class, SalesChannel::class, Expense::class],
-    version = 9,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -92,6 +92,44 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // No changes, just migrate version
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create a new table with all columns including `orderId`
+                db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `sale_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `orderId` INTEGER NOT NULL,  -- ✅ Ensure orderId is properly added
+                `itemId` INTEGER NOT NULL,
+                `itemName` TEXT NOT NULL,
+                `quantity` INTEGER NOT NULL,
+                `salePrice` REAL NOT NULL,
+                `rawPrice` REAL NOT NULL,
+                `profit` INTEGER NOT NULL,
+                `salesChannel` TEXT NOT NULL,
+                `timestamp` INTEGER NOT NULL,
+                `cancelled` INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+
+                // Copy data from old `sale` table to new `sale_new` table
+                db.execSQL("""
+            INSERT INTO `sale_new` (`id`, `orderId`, `itemId`, `itemName`, `quantity`, `salePrice`, `rawPrice`, `profit`, `salesChannel`, `timestamp`, `cancelled`)
+            SELECT `id`, 0, `itemId`, `itemName`, `quantity`, `salePrice`, `rawPrice`, `profit`, `salesChannel`, `timestamp`, `cancelled`
+            FROM `sale`
+        """.trimIndent())
+
+                // Drop old table and rename new one
+                db.execSQL("DROP TABLE `sale`")
+                db.execSQL("ALTER TABLE `sale_new` RENAME TO `sale`")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -102,7 +140,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10,
+                        MIGRATION_10_11
                     )
                     .build().also { instance = it }
             }

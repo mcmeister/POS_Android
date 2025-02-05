@@ -12,7 +12,6 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Spinner
-import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -34,7 +33,7 @@ class EditItemActivity : AppCompatActivity() {
     private lateinit var database: AppDatabase
     private var itemId: Int? = null
     private var photoUri: String? = null
-    private lateinit var existingSalesChannels: MutableList<String> // Changed to MutableList for easier updates
+    private lateinit var existingSalesChannels: MutableList<SalesChannel> // Changed to MutableList for easier updates
 
     // Photo picker for Android 14+
     private val selectPhotoLauncher = registerForActivityResult(
@@ -67,7 +66,6 @@ class EditItemActivity : AppCompatActivity() {
         buttonAddPhoto = findViewById(R.id.button_add_photo)
 
         val buttonSave: Button = findViewById(R.id.button_save)
-        val buttonProceed: Button = findViewById(R.id.button_proceed)
 
         // Initialize the database
         database = AppDatabase.getDatabase(this)
@@ -88,34 +86,21 @@ class EditItemActivity : AppCompatActivity() {
         buttonSave.setOnClickListener {
             saveItem()
         }
-
-        buttonProceed.setOnClickListener {
-            val salePrice = editTextSalePrice.text.toString().toIntOrNull() ?: 0
-            val quantity = editTextQuantity.text.toString().toIntOrNull() ?: 1
-            val salesChannel = salesChannelDropdown.selectedItem?.toString()?.trim() ?: ""
-
-            if (salesChannel.isEmpty() || salesChannel == "Add new...") {
-                Toast.makeText(this, "Please select or add a sales channel.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            insertSale(salePrice, quantity, salesChannel)
-        }
     }
 
     private fun loadSalesChannels() {
         lifecycleScope.launch {
             existingSalesChannels = withContext(Dispatchers.IO) {
                 val channels = database.saleDao().getActiveSalesChannels().toMutableList()
-                channels.add("Add new...") // Add the option to enter a new sales channel
-                channels.add("Edit...")    // Add the option to edit existing sales channels
+                channels.add(SalesChannel(name = "Add new...", discount = 0))  // Wrap in SalesChannel object
+                channels.add(SalesChannel(name = "Edit...", discount = 0))     // Wrap in SalesChannel object
                 channels
             }
 
             val adapter = ArrayAdapter(
                 this@EditItemActivity,
                 android.R.layout.simple_spinner_item,
-                existingSalesChannels
+                existingSalesChannels.map { it.name }  // Extract names
             )
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             salesChannelDropdown.adapter = adapter
@@ -130,7 +115,7 @@ class EditItemActivity : AppCompatActivity() {
                     position: Int,
                     id: Long
                 ) {
-                    when (existingSalesChannels[position]) {
+                    when (existingSalesChannels[position].name) {  // Use .name to compare strings
                         "Add new..." -> showNewSalesChannelDialog()
                         "Edit..." -> salesChannelManager.showEditSalesChannelsDialog {
                             loadSalesChannels() // Callback when the dialog is dismissed
@@ -262,54 +247,6 @@ class EditItemActivity : AppCompatActivity() {
             val intent = Intent()
             intent.putExtra("new_item", savedItem)
             setResult(Activity.RESULT_OK, intent)
-            finish()
-        }
-    }
-
-    private fun insertSale(salePrice: Int, quantity: Int, salesChannel: String) {
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                // Check if itemId is null and insert a new item if necessary
-                if (itemId == null) {
-                    val rawPrice = (editTextRawPrice.text.toString().toIntOrNull() ?: 0)
-                    val newItem = Item(
-                        name = editTextItemName.text.toString(),
-                        rawPrice = rawPrice,
-                        salePrice = salePrice,
-                        photoUri = photoUri
-                    )
-                    itemId = database.itemDao().insertItem(newItem).toInt()
-                }
-
-                // Get the Item Name to insert into the Sale table
-                val itemName = database.itemDao().getItemNameById(itemId!!)
-
-                val lastSaleId = database.saleDao().getLastSaleId() ?: 0
-                val newSaleId = lastSaleId + 1
-
-                // Correct profit calculation: (Sale Price - Raw Price) * Quantity
-                val rawPrice = (editTextRawPrice.text.toString().toIntOrNull() ?: 0)
-                val profit = quantity * (salePrice - rawPrice)
-
-                // Log for debugging
-                android.util.Log.d("EditItemActivity", "Raw Price: $rawPrice, Sale Price: $salePrice, Quantity: $quantity, Profit: $profit")
-
-                // Create and insert the Sale object with itemName
-                val sale = Sale(
-                    id = newSaleId,
-                    itemId = itemId!!,
-                    itemName = itemName ?: "",  // Ensure itemName is not null
-                    quantity = quantity,
-                    salePrice = salePrice,
-                    salesChannel = salesChannel,
-                    rawPrice = rawPrice,
-                    profit = profit,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                database.saleDao().insertSale(sale)
-            }
-            setResult(Activity.RESULT_OK)
             finish()
         }
     }

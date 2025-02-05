@@ -7,4 +7,6 @@
 
     <!-- Path for internal storage directory (private to your app) -->
     <files-path name="internal_files" path="." />
+
+    <external-files-path name="documents" path="Documents/" />
 </paths>

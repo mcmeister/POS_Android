@@ -6,96 +6,100 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
+import android.widget.Button
 import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class SalesAdapter(
     private val context: Context,
-    private val sales: MutableList<Sale>,
-    private val items: List<Item>,
-    private val salesChannels: List<SalesChannel>,  // List of Sales Channels
-    private val onCancelSaleClick: (Sale) -> Unit
-) : RecyclerView.Adapter<SalesAdapter.SaleViewHolder>() {
+    var orders: Map<Int, List<Sale>>,
+    private val salesChannels: List<SalesChannel>,
+    private val onCancelSaleClick: (Sale) -> Unit,
+    private val onCancelOrderClick: (Int) -> Unit
+) : RecyclerView.Adapter<SalesAdapter.OrderViewHolder>() {
 
-    class SaleViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val textViewSaleId: TextView = view.findViewById(R.id.text_view_sale_id)
-        val textViewItemName: TextView = view.findViewById(R.id.text_view_item_name)
-        val textViewSalesChannel: TextView = view.findViewById(R.id.text_view_sales_channel)
-        val textViewQuantity: TextView = view.findViewById(R.id.text_view_quantity)
-        val textViewSalePrice: TextView = view.findViewById(R.id.text_view_sale_price)
+    class OrderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val textViewOrderId: TextView = view.findViewById(R.id.text_view_sale_id)
+        val textViewSalesChannel: TextView = view.findViewById(R.id.text_view_sales_channel) // ✅ Ensure this exists
         val textViewTotal: TextView = view.findViewById(R.id.text_view_total)
-        val textViewSaleTimestamp: TextView = view.findViewById(R.id.text_view_sale_timestamp)
-        val buttonCancelSale: ImageButton = view.findViewById(R.id.button_cancel_sale)
+        val recyclerViewItems: RecyclerView = view.findViewById(R.id.recycler_view_items)
+        val buttonCancelOrder: Button = view.findViewById(R.id.button_cancel_order)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SaleViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.sale_item, parent, false)
-        return SaleViewHolder(view)
+    fun updateOrders(newOrders: Map<Int, List<Sale>>) {
+        val oldOrders = orders
+        orders = newOrders
+
+        val diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(object : androidx.recyclerview.widget.DiffUtil.Callback() {
+            override fun getOldListSize(): Int = oldOrders.size
+            override fun getNewListSize(): Int = newOrders.size
+
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                val oldOrderId = oldOrders.keys.toList()[oldItemPosition]
+                val newOrderId = newOrders.keys.toList()[newItemPosition]
+                return oldOrderId == newOrderId
+            }
+
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                val oldOrder = oldOrders.values.toList()[oldItemPosition]
+                val newOrder = newOrders.values.toList()[newItemPosition]
+                return oldOrder == newOrder
+            }
+        })
+
+        diffResult.dispatchUpdatesTo(this) // More efficient updates
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): OrderViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.order_item, parent, false)
+        return OrderViewHolder(view)
     }
 
     @SuppressLint("SetTextI18n")
-    override fun onBindViewHolder(holder: SaleViewHolder, position: Int) {
-        val sale = sales[position]
-        val item = items.find { it.id == sale.itemId }
+    override fun onBindViewHolder(holder: OrderViewHolder, position: Int) {
+        val orderId = orders.keys.toList()[position] // ✅ Orders are already sorted in DESC order
+        val orderItems = orders[orderId] ?: return
 
-        holder.textViewSaleId.text = "Order ID: ${sale.id}"
-        holder.textViewItemName.text = "Item: ${item?.name ?: "Unknown Item"}"
+        holder.textViewOrderId.text = "Order #$orderId"
 
-        // Find the corresponding SalesChannel by sale.salesChannel
-        val salesChannel = salesChannels
-            .filter { it.name == sale.salesChannel }  // Get all channels with the same name
-            .maxByOrNull { it.id }  // Select the one with the latest (highest) id
+        val salesChannel = orderItems.first().salesChannel
+        val salesChannelData = salesChannels.find { it.name == salesChannel }
+        val discount = salesChannelData?.discount ?: 0
 
-        // Determine how to display the sales channel (Deleted or Discount)
-        holder.textViewSalesChannel.text = when {
-            salesChannel == null -> "Sales Channel: Unknown"
-            salesChannel.deleted == 1 -> "Sales Channel: ${salesChannel.name} (Deleted)"
-            salesChannel.discount > 0 -> "Sales Channel: ${salesChannel.name} (Discount: ${salesChannel.discount}%)"
-            else -> "Sales Channel: ${salesChannel.name}"
+        holder.textViewSalesChannel.text = "Channel: $salesChannel (Discount: $discount%)"
+
+        val orderTotal = orderItems.sumOf { sale ->
+            calculateTotal(sale.salePrice, sale.quantity, discount)
         }
+        holder.textViewTotal.text = "Total: $orderTotal"
 
-        holder.textViewQuantity.text = "Quantity: ${sale.quantity}"
-        holder.textViewSalePrice.text = "Sale Price: ${sale.salePrice}"
+        holder.recyclerViewItems.layoutManager = LinearLayoutManager(holder.itemView.context)
+        holder.recyclerViewItems.adapter = OrderItemAdapter(orderItems, salesChannels, onCancelSaleClick)
 
-        // Calculate total as sale.salePrice * sale.quantity, applying the discount percentage
-        val discountMultiplier = salesChannel?.let { (100 - it.discount) / 100.0 } ?: 1.0
-        val total = sale.salePrice * sale.quantity * discountMultiplier
-
-        // Round the total to the nearest integer using round()
-        val roundedTotal = kotlin.math.round(total).toInt()
-
-        // Display the rounded total
-        holder.textViewTotal.text = "Total: $roundedTotal"
-
-        // Format timestamp
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        holder.textViewSaleTimestamp.text = "Date: ${dateFormat.format(Date(sale.timestamp))}"
-
-        // Handle Cancel button click with confirmation dialog
-        holder.buttonCancelSale.setOnClickListener {
-            showCancelConfirmationDialog(sale)
+        holder.buttonCancelOrder.setOnClickListener {
+            showCancelOrderDialog(orderId)
         }
     }
 
-    override fun getItemCount(): Int = sales.size
+    override fun getItemCount(): Int = orders.size
 
-    // Function to show the confirmation dialog
-    private fun showCancelConfirmationDialog(sale: Sale) {
+    private fun showCancelOrderDialog(orderId: Int) {
         AlertDialog.Builder(context)
             .setTitle("Cancel Order")
-            .setMessage("Are you sure you want to cancel this order?")
+            .setMessage("Are you sure you want to cancel this entire order?")
             .setPositiveButton("Yes") { dialog, _ ->
-                onCancelSaleClick(sale) // Proceed with the cancellation
+                onCancelOrderClick(orderId)
                 dialog.dismiss()
             }
             .setNegativeButton("No") { dialog, _ ->
-                dialog.dismiss() // Just dismiss the dialog
+                dialog.dismiss()
             }
             .create()
             .show()
+    }
+
+    private fun calculateTotal(salePrice: Double, quantity: Int, discount: Int): Double {
+        return salePrice * quantity * (1 - discount / 100.0)
     }
 }
