@@ -1,0 +1,43 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/text_view_sale_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Order ID"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/text_view_sales_channel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sales Channel"
+        android:textStyle="bold" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_items"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:nestedScrollingEnabled="false" />
+
+    <TextView
+        android:id="@+id/text_view_total"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Total:" />
+
+    <Button
+        android:id="@+id/button_cancel_order"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cancel Order"
+        android:textSize="11sp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:padding="4dp"
+        android:textColor="#FF0000" />
+</LinearLayout>

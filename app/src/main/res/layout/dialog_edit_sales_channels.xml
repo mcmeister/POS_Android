@@ -1,0 +1,75 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Title of the dialog -->
+    <TextView
+        android:id="@+id/title_sales_channels"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/sales_channels_list"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal" />
+
+    <!-- ScrollView to hold the dynamic list of channels -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:contentDescription="@string/sales_channels_list"
+        android:descendantFocusability="beforeDescendants">
+
+        <!-- Single child of ScrollView: LinearLayout -->
+        <LinearLayout
+            android:id="@+id/sales_channels_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Placeholder for sales channels, views will be added dynamically or can be added here statically if needed -->
+
+            <!-- Example Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                tools:ignore="UselessParent">
+
+                <!-- Channel Name EditText -->
+                <EditText
+                    android:id="@+id/edit_channel_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:gravity="start"
+                    android:inputType="text"
+                    android:hint="@string/edit_sales_channel_name" />
+
+                <!-- Discount EditText -->
+                <EditText
+                    android:id="@+id/edit_discount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:hint="@string/edit_sales_channel_discount" />
+
+                <!-- Delete Button -->
+                <ImageButton
+                    android:id="@+id/button_delete"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/delete_channel"
+                    android:src="@drawable/ic_delete"
+                    android:background="?attr/selectableItemBackgroundBorderless" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
